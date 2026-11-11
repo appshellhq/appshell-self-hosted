@@ -12,13 +12,15 @@ export default function Hello() {
 
   return (
     <section className="hello">
-      <h1>Hello from your machine</h1>
+      <h1>Hello</h1>
       <p>
-        Your dev server is serving this page into your copy of the portal, for your browser only.
-        Anyone else who opens the application sees it without this page.
+        This is the page you develop. While its dev server runs and an overlay points your
+        browser at it, your copy of the portal runs it from your machine, for your browser only.
+        Once you publish it and activate it, everyone who opens the application sees it.
       </p>
       <p>
-        Edit <code>remotes/hello/src/Hello.tsx</code> and save: this page updates in place.
+        Edit <code>remotes/hello/src/Hello.tsx</code> and save while the dev server runs: this
+        page updates in place.
       </p>
       <button type="button" onClick={() => setCount((n) => n + 1)}>
         Clicked {count} {count === 1 ? 'time' : 'times'}

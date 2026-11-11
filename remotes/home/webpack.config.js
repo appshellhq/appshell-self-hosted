@@ -4,7 +4,7 @@ const { dependencies } = require('./package.json');
 module.exports = remote({
   name: 'HomeModule',
   exposes: { './Home': './src/Home' },
-  port: 7402,
+  port: 7412,
   uniqueName: 'acme-home',
   dependencies,
 });

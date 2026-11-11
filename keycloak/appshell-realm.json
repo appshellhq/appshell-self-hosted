@@ -70,6 +70,7 @@
   ],
   "users": [
     {
+      "id": "2b0c5a52-6f1e-4d8a-9a51-0a11ce000001",
       "username": "alice",
       "enabled": true,
       "email": "alice@acme.example",
@@ -77,9 +78,10 @@
       "firstName": "Alice",
       "lastName": "Publisher",
       "credentials": [{ "type": "password", "value": "alice", "temporary": false }],
-      "realmRoles": ["appshell-publisher"]
+      "realmRoles": ["default-roles-appshell", "appshell-publisher"]
     },
     {
+      "id": "2b0c5a52-6f1e-4d8a-9a51-0b0b00000002",
       "username": "bob",
       "enabled": true,
       "email": "bob@acme.example",
@@ -87,9 +89,10 @@
       "firstName": "Bob",
       "lastName": "Viewer",
       "credentials": [{ "type": "password", "value": "bob", "temporary": false }],
-      "realmRoles": []
+      "realmRoles": ["default-roles-appshell"]
     },
     {
+      "id": "2b0c5a52-6f1e-4d8a-9a51-5eed00000003",
       "username": "service-account-appshell-seed",
       "enabled": true,
       "serviceAccountClientId": "appshell-seed",
