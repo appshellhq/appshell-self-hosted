@@ -1,0 +1,10 @@
+node_modules/
+dist/
+
+# What the seed and you put on the bundles server. The directory itself stays, so it's yours
+# rather than created by Docker.
+bundles/*
+!bundles/.gitkeep
+
+# The CLI's config and credentials for this demo (env.sh).
+.appshell/

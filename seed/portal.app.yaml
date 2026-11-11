@@ -1,0 +1,17 @@
+# The application the seed applies: the portal a platform team would set up first.
+#
+# `spec.packages` is added by seed.mjs, from each remote's package.json, so the versions it
+# activates are always the ones it just published.
+apiVersion: registry.appshell.org/v1
+kind: Application
+name: acme/portal
+spec:
+  shell:
+    # Addressed as the registry knows it: scope/package/Component.
+    root: acme/layout/Layout
+    title: Acme Portal
+    description: An application composed by your own appshell registry
+    theme:
+      base: neutral
+      accent: steel
+      colorScheme: system
