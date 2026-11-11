@@ -1,0 +1,37 @@
+.home {
+  max-width: 48rem;
+  padding: var(--appshell-space-xl);
+}
+
+.home h1 {
+  margin: 0 0 var(--appshell-space-md);
+  font-size: var(--appshell-font-size-h3);
+  line-height: var(--appshell-line-height-tight);
+}
+
+.home p {
+  margin: 0 0 var(--appshell-space-lg);
+  color: var(--appshell-text-muted);
+}
+
+.home code {
+  font-family: var(--appshell-font-mono);
+  font-size: var(--appshell-font-size-small);
+}
+
+.home table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.home th,
+.home td {
+  padding: var(--appshell-space-sm) var(--appshell-space-md);
+  border-bottom: 1px solid var(--appshell-border);
+  text-align: left;
+}
+
+.home th {
+  color: var(--appshell-text-muted);
+  font-weight: 600;
+}

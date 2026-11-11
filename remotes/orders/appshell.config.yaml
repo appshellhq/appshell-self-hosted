@@ -1,0 +1,8 @@
+visibility: public
+
+components:
+  OrdersModule/Orders:
+    metadata:
+      route: /orders
+      displayName: Orders
+      order: 10

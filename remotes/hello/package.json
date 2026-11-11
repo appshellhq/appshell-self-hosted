@@ -1,0 +1,15 @@
+{
+  "name": "hello",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The page you develop: run it into your copy of the portal, then publish it",
+  "license": "Apache-2.0",
+  "scripts": {
+    "start": "webpack serve --mode development",
+    "build": "webpack --mode production"
+  },
+  "dependencies": {
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  }
+}

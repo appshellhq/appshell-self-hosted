@@ -1,0 +1,16 @@
+{
+  "name": "@acme/home",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The application's start page, which shows what the page is composed of",
+  "license": "Apache-2.0",
+  "scripts": {
+    "start": "webpack serve --mode development",
+    "build": "webpack --mode production"
+  },
+  "dependencies": {
+    "@appshell/runtime": "^1.0.0-alpha.137",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  }
+}

@@ -1,0 +1,8 @@
+# No visibility: the registry defaults to private. Its code is then served only to whoever may
+# write into its scope, and to a browser that was served an application running it.
+components:
+  HelloModule/Hello:
+    metadata:
+      route: /hello
+      displayName: Hello
+      order: 20
