@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  remotes:
+    name: Remotes type-check and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: remotes
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: remotes/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+
+  # What the README promises: docker compose up, and the portal composes. The seed runs in the
+  # foreground, so its exit code is this job's.
+  compose:
+    name: Compose up, seeded and rendered
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      # The registry image, which is private until its first public release.
+      packages: read
+    env:
+      REGISTRY_IMAGE: ghcr.io/appshellhq/registry:sha-3458835
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Start the registry and what it needs
+        run: docker compose up --wait registry
+
+      - name: Seed it
+        run: docker compose run --rm seed
+
+      - name: The registry serves a published file, cached for good
+        run: |
+          set -euo pipefail
+          headers=$(curl -fsS -D - -o /dev/null http://localhost:7150/p/acme/home/1.0.0/remoteEntry.js)
+          echo "$headers"
+          grep -qi '^cache-control: .*immutable' <<< "$headers"
+
+      - name: Seeding again changes nothing
+        run: docker compose run --rm seed
+
+      - name: The portal composes
+        run: |
+          set -euo pipefail
+          export BROWSER_DIR="$RUNNER_TEMP/browser"
+          npm install --no-save --prefix "$BROWSER_DIR" playwright@1.64.1
+          "$BROWSER_DIR/node_modules/.bin/playwright" install --with-deps chromium
+          cp .github/scripts/check-portal.mjs "$BROWSER_DIR/"
+          node "$BROWSER_DIR/check-portal.mjs"
+
+      - name: The services' logs, on failure
+        if: failure()
+        run: docker compose logs --tail 100
