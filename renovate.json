@@ -1,0 +1,38 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", "helpers:pinGitHubActionDigests"],
+  "timezone": "America/New_York",
+  "schedule": ["before 6am on monday"],
+  "prConcurrentLimit": 5,
+  "labels": ["dependencies"],
+  "rangeStrategy": "bump",
+  "packageRules": [
+    {
+      "description": "What this demo exists to show: the registry, and the CLI and plugin a reader runs against it. Their own PR, never grouped with tooling, so CI's compose job proves each bump before anyone reads the README against it.",
+      "matchPackageNames": ["ghcr.io/appshellhq/appshell-registry", "/^@appshell//"],
+      "groupName": "appshell",
+      "labels": ["dependencies", "appshell"]
+    },
+    {
+      "description": "Held at 5.106: newer releases don't build with @module-federation/enhanced 2.9, as appshell-quickstart found.",
+      "matchPackageNames": ["webpack"],
+      "allowedVersions": "<5.107.0"
+    },
+    {
+      "description": "Keycloak and MongoDB match what the hosted registry runs; a major is a decision.",
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "Build tooling can't reach a reader's browser except through the build CI runs. One grouped PR a week.",
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "matchPackageNames": ["*", "!/^@appshell//"],
+      "groupName": "dev dependencies"
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "labels": ["security"],
+    "schedule": ["at any time"]
+  }
+}
