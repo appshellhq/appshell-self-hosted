@@ -75,8 +75,13 @@ const env = {
   APPSHELL_CREDENTIALS: '/tmp/appshell/credentials',
 };
 
+// Run with this node, as the image has no shell to read the bin script's #! line.
 const appshell = (cwd, ...args) =>
-  execFileSync('/remotes/node_modules/.bin/appshell', args, { cwd, env, stdio: 'inherit' });
+  execFileSync(process.execPath, ['/seed/node_modules/.bin/appshell', ...args], {
+    cwd,
+    env,
+    stdio: 'inherit',
+  });
 
 appshell('/remotes', 'scopes', 'create', SCOPE);
 

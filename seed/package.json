@@ -1,0 +1,9 @@
+{
+  "name": "seed",
+  "private": true,
+  "description": "The seed's own dependencies: only the CLI it publishes with, so its image carries no build tooling",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@appshell/cli": "1.0.0-alpha.148"
+  }
+}
