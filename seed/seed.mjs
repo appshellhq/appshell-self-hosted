@@ -2,9 +2,9 @@
  * Seeds the registry with what a platform team would publish first: a layout, two pages, and
  * acme/portal, the application that composes them.
  *
- * It runs on every `docker compose up` and is safe to run again: claiming a scope it already
- * owns, publishing a version again with the same content, and applying the same application
- * change nothing.
+ * Run it with `docker compose run --rm seed`, once the registry is up. It's safe to run again:
+ * claiming a scope it already owns, publishing a version again with the same content, and
+ * applying the same application change nothing.
  *
  * It signs in as appshell-seed, a service account in the demo realm that holds the publisher
  * role, through the client credentials grant: a pipeline's identity rather than a person's. So

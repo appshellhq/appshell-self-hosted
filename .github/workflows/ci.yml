@@ -30,8 +30,8 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
 
-  # What the README promises: docker compose up, and the portal composes. The seed runs in the
-  # foreground, so its exit code is this job's.
+  # What the README promises: its two commands start the registry and seed it, and the portal
+  # composes. The seed runs in the foreground, so its exit code is this job's.
   compose:
     name: Compose up, seeded and rendered
     runs-on: ubuntu-latest
@@ -52,7 +52,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Start the registry and what it needs
-        run: docker compose up --wait registry
+        run: docker compose up --wait
 
       - name: Seed it
         run: docker compose run --rm seed

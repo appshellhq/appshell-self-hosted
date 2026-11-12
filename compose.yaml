@@ -1,6 +1,7 @@
 # The appshell registry on your machine.
 #
 #   docker compose up --wait
+#   docker compose run --rm seed
 #
 # then open http://localhost:7150/a/acme/portal. The README walks through the rest.
 #
@@ -106,9 +107,11 @@ services:
       bundles:
         condition: service_started
 
-  # What a platform team would publish first: acme's layout and pages, and acme/portal. Runs once
-  # and exits; safe to run again.
+  # What a platform team would publish first: acme's layout and pages, and acme/portal. Safe to
+  # run again. Left out of `up`, whose --wait counts it ready as soon as it starts: `docker compose
+  # run --rm seed` runs it in the foreground, so it returns once the portal exists, or fails.
   seed:
+    profiles: [seed]
     build:
       context: .
       dockerfile: seed/Dockerfile

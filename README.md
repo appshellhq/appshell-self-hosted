@@ -1,7 +1,7 @@
 # appshell, self-hosted
 
-The [appshell](https://appshell.org) registry, running on your machine. One command starts it with
-everything it needs, and publishes an application composed from three micro-frontends. You can
+The [appshell](https://appshell.org) registry, running on your machine. Two commands start it with
+everything it needs, and publish an application composed from three micro-frontends. You can
 then sign in, develop a page into a copy of that application, publish it, roll it back, and see
 who may change what.
 
@@ -17,9 +17,11 @@ who may change what.
 git clone https://github.com/appshellhq/appshell-self-hosted.git
 cd appshell-self-hosted
 docker compose up --wait
+docker compose run --rm seed
 ```
 
-The first run builds the seed, which takes a minute or two. Then open
+`up` starts the registry and what it needs. The seed then publishes the portal. Its first run
+builds it, which takes a minute or two, and it ends by printing the portal's address:
 <http://localhost:7150/a/acme/portal>.
 
 ## What's running
@@ -30,7 +32,7 @@ The first run builds the seed, which takes a minute or two. Then open
 | `mongodb`  | The registry's only store.                                                                                                                                                                                    |
 | `keycloak` | Who signs in. Its `appshell` realm has **alice** (password `alice`), who may publish, and **bob** (`bob`), who may not. The admin console is at <http://localhost:8080>, as `admin` / `admin`.             |
 | `bundles`  | Where packages' code lives: in a real deployment your bucket or CDN, here the `bundles/` directory. The registry never stores code. It fetches it from here and serves it to browsers.                    |
-| `seed`     | What a platform team publishes first: `acme`'s layout and two pages, and `acme/portal`, the application that composes them. It runs once and exits. It signs in as a service account, as a pipeline would. |
+| `seed`     | What a platform team publishes first: `acme`'s layout and two pages, and `acme/portal`, the application that composes them. It runs once and exits, and running it again changes nothing. It signs in as a service account, as a pipeline would. |
 
 The registry and Keycloak listen on `127.0.0.1` only. Their passwords and secrets are in this
 repository, so nothing else on your network should reach them.
@@ -171,6 +173,7 @@ For a first look with nobody signed in, start clean in `AUTH_MODE=none`:
 ```sh
 docker compose down -v
 AUTH_MODE=none docker compose up --wait
+docker compose run --rm seed
 ```
 
 Every request then runs as one principal. Scopes and private packages have nothing to show, and
@@ -205,16 +208,18 @@ REGISTRY_IMAGE=<image> docker compose up --wait
   rm -rf bundles/acme bundles/alice .appshell
   ```
 
+  Then [start it](#start-it) again.
+
 ## Troubleshooting
 
 - **On a network that inspects HTTPS,** Node won't trust the certificate authority your network
   re-signs traffic with until it's told to use your system's certificates. Run
   `export NODE_USE_SYSTEM_CA=1` before `npm ci`. The seed's image runs `npm ci` too, when
-  `docker compose up` first builds it, inside a container that doesn't trust your system's
+  `docker compose run` first builds it, inside a container that doesn't trust your system's
   certificates. If that build fails with a certificate error, this is why: build it once on a
   network that doesn't inspect HTTPS.
-- **`seed` exited with an error:** `docker compose logs seed` says why.
-  `docker compose run --rm seed` runs it again.
+- **The seed failed:** its output says why. Run it again once that's fixed: it skips what it has
+  already done.
 - **A port is taken:** stop what holds 7150 or 8080. The dev servers use 7410–7413.
 
 ## License
