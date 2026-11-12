@@ -20,9 +20,8 @@ docker compose up --wait
 docker compose run --rm seed
 ```
 
-`up` starts the registry and what it needs. The seed then publishes the portal. Its first run
-builds it, which takes a minute or two, and it ends by printing the portal's address:
-<http://localhost:7150/a/acme/portal>.
+`up` starts the registry and what it needs. The seed then publishes the portal, and ends by
+printing its address: <http://localhost:7150/a/acme/portal>.
 
 ## What's running
 
@@ -197,6 +196,19 @@ The registry verifies tokens from any OpenID Connect provider: set `AUTH_ISSUER`
 REGISTRY_IMAGE=<image> docker compose up --wait
 ```
 
+## Changing what the seed publishes
+
+The seed runs an image this repository publishes, `ghcr.io/appshellhq/appshell-self-hosted-seed`,
+built from `remotes/` and `seed/`. After you change either, build it from your copy:
+
+```sh
+docker compose build seed
+docker compose run --rm seed
+```
+
+A published version never changes, so give a changed package a new version in its
+`package.json`, or [start over](#stopping-and-starting-over).
+
 ## Stopping and starting over
 
 - **`docker compose down`** stops everything. MongoDB keeps its data. Keycloak imports its realm
@@ -214,10 +226,10 @@ REGISTRY_IMAGE=<image> docker compose up --wait
 
 - **On a network that inspects HTTPS,** Node won't trust the certificate authority your network
   re-signs traffic with until it's told to use your system's certificates. Run
-  `export NODE_USE_SYSTEM_CA=1` before `npm ci`. The seed's image runs `npm ci` too, when
-  `docker compose run` first builds it, inside a container that doesn't trust your system's
-  certificates. If that build fails with a certificate error, this is why: build it once on a
-  network that doesn't inspect HTTPS.
+  `export NODE_USE_SYSTEM_CA=1` before `npm ci`. Building the seed's image yourself runs
+  `npm ci` too, inside a container that doesn't trust your system's certificates. If that build
+  fails with a certificate error, this is why: build it on a network that doesn't inspect HTTPS.
+  Running the published image needs no build.
 - **The seed failed:** its output says why. Run it again once that's fixed: it skips what it has
   already done. If it found a different build of a version already in `bundles/`, from changed
   code or dependencies, [start over](#stopping-and-starting-over), or give that package a new

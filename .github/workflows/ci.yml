@@ -54,6 +54,10 @@ jobs:
       - name: Start the registry and what it needs
         run: docker compose up --wait
 
+      # From this commit: otherwise `run` pulls the released image, and the change goes untested.
+      - name: Build the seed
+        run: docker compose build seed
+
       - name: Seed it
         run: docker compose run --rm seed
 
