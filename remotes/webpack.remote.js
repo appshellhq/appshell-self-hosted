@@ -33,6 +33,8 @@ module.exports =
           : {},
       }),
       {
+        // dist holds this build and nothing older, since publishing copies all of it.
+        output: { clean: true },
         devServer: { hot: true },
         resolve: { extensions: ['.js', '.ts', '.tsx'] },
         module: {
