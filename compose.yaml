@@ -4,7 +4,9 @@
 #
 # then open http://localhost:7150/a/acme/portal. The README walks through the rest.
 #
-# Ports on your machine: 7150 the registry, 8080 Keycloak. Nothing else is published.
+# Ports on your machine: 7150 the registry, 8080 Keycloak. Nothing else is published, and these
+# two only on 127.0.0.1: their passwords and secrets are in this repository, so nothing else on
+# your network may reach them.
 
 name: appshell
 
@@ -51,7 +53,7 @@ services:
     volumes:
       - ./keycloak:/opt/keycloak/data/import:ro
     ports:
-      - '8080:8080'
+      - '127.0.0.1:8080:8080'
     healthcheck:
       # The image has no curl, so ask the management port by hand.
       test:
@@ -95,7 +97,7 @@ services:
       EVENT_BUS: none
       OTEL_SDK_DISABLED: 'true'
     ports:
-      - '7150:7150'
+      - '127.0.0.1:7150:7150'
     depends_on:
       mongodb:
         condition: service_healthy

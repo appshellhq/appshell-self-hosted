@@ -32,6 +32,9 @@ The first run builds the seed, which takes a minute or two. Then open
 | `bundles`  | Where packages' code lives: in a real deployment your bucket or CDN, here the `bundles/` directory. The registry never stores code. It fetches it from here and serves it to browsers.                    |
 | `seed`     | What a platform team publishes first: `acme`'s layout and two pages, and `acme/portal`, the application that composes them. It runs once and exits. It signs in as a service account, as a pipeline would. |
 
+The registry and Keycloak listen on `127.0.0.1` only. Their passwords and secrets are in this
+repository, so nothing else on your network should reach them.
+
 ## Walk through it
 
 ### 1. Look at the portal
