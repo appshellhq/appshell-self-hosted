@@ -12,7 +12,9 @@
  * scope of their own.
  */
 import { execFileSync } from 'node:child_process';
-import { cpSync, readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { cpSync, existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 
 const { APPSHELL_REGISTRY, PUBLIC_URL, TOKEN_URL, SEED_CLIENT_ID, SEED_CLIENT_SECRET } = process.env;
@@ -32,6 +34,17 @@ const waitFor = async (url, what) => {
   }
 
   throw new Error(`${what} never answered at ${url}`);
+};
+
+/** One digest of every file under dir and its path, so two builds compare in one step. */
+const digestOf = (dir) => {
+  const hash = createHash('sha256');
+  for (const file of readdirSync(dir, { recursive: true }).sort()) {
+    const path = join(dir, file);
+    if (statSync(path).isFile()) hash.update(`${file}\0`).update(readFileSync(path)).update('\0');
+  }
+
+  return hash.digest('hex');
 };
 
 const signIn = async () => {
@@ -72,8 +85,18 @@ const packages = REMOTES.map((name) => {
   const { version } = JSON.parse(readFileSync(`${dir}/package.json`, 'utf-8'));
 
   // Where a deployment puts a build: the bundles server, which the registry fetches from at
-  // {scope}/{name}/{version}/. The registry itself never stores a package's code.
-  cpSync(`${dir}/dist`, `${BUNDLES}/${SCOPE}/${name}/${version}`, { recursive: true });
+  // {scope}/{name}/{version}/. The registry itself never stores a package's code. It tells
+  // browsers a version's files never change, so a version already there is left as it is, and
+  // a different build is refused rather than served to some browsers and not others.
+  const bundle = `${BUNDLES}/${SCOPE}/${name}/${version}`;
+  if (!existsSync(bundle)) {
+    cpSync(`${dir}/dist`, bundle, { recursive: true });
+  } else if (digestOf(bundle) !== digestOf(`${dir}/dist`)) {
+    throw new Error(
+      `bundles/${SCOPE}/${name}/${version} holds a different build. A published version never ` +
+        `changes: give remotes/${name} a new version, or start over (see the README).`,
+    );
+  }
   appshell(dir, 'publish', '--template', 'dist/appshell.template.json');
 
   return `${SCOPE}/${name}@${version}`;

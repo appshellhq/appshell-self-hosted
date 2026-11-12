@@ -219,7 +219,9 @@ REGISTRY_IMAGE=<image> docker compose up --wait
   certificates. If that build fails with a certificate error, this is why: build it once on a
   network that doesn't inspect HTTPS.
 - **The seed failed:** its output says why. Run it again once that's fixed: it skips what it has
-  already done.
+  already done. If it found a different build of a version already in `bundles/`, from changed
+  code or dependencies, [start over](#stopping-and-starting-over), or give that package a new
+  version.
 - **A port is taken:** stop what holds 7150 or 8080. The dev servers use 7410–7413.
 
 ## License
