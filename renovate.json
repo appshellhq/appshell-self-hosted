@@ -29,6 +29,16 @@
       "matchUpdateTypes": ["minor", "patch"],
       "matchPackageNames": ["*", "!/^@appshell//"],
       "groupName": "dev dependencies"
+    },
+    {
+      "description": "The seed image's bases, pinned by digest: node builds it, distroless runs it. One PR for both, which CI builds and seeds with.",
+      "matchFileNames": ["seed/Dockerfile"],
+      "groupName": "seed base images"
+    },
+    {
+      "description": "This repository releases the seed's image, and sets its version in compose.yaml before tagging it (.github/workflows/release.yml).",
+      "matchPackageNames": ["ghcr.io/appshellhq/appshell-self-hosted-seed"],
+      "enabled": false
     }
   ],
   "vulnerabilityAlerts": {

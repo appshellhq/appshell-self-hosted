@@ -112,6 +112,11 @@ services:
   # run --rm seed` runs it in the foreground, so it returns once the portal exists, or fails.
   seed:
     profiles: [seed]
+    # Published by this repository's release, so running the seed only pulls it: no npm or webpack
+    # on your machine. Compose builds it from remotes/ and seed/ instead when it can't pull it, and
+    # `docker compose build seed` does after you change them. A release names its own version here
+    # before it's tagged; .github/workflows/release.yml checks it does.
+    image: ghcr.io/appshellhq/appshell-self-hosted-seed:0.1.0
     build:
       context: .
       dockerfile: seed/Dockerfile
