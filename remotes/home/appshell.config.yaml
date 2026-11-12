@@ -1,0 +1,10 @@
+# What this package contributes to an application. The layout (acme/layout) reads each component's
+# metadata to build its navigation: the route it's mounted at, its label, and where it's listed.
+visibility: public
+
+components:
+  HomeModule/Home:
+    metadata:
+      route: /
+      displayName: Home
+      order: 0

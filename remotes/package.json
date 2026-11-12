@@ -1,0 +1,40 @@
+{
+  "name": "remotes",
+  "private": true,
+  "description": "The micro-frontends this demo publishes: the seeded layout and pages, and hello, the page you develop",
+  "license": "Apache-2.0",
+  "workspaces": [
+    "layout",
+    "home",
+    "orders",
+    "hello"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@appshell/cli": "1.0.0-alpha.148",
+    "@appshell/webpack-plugin": "1.0.0-alpha.148",
+    "@babel/core": "^7.28.0",
+    "@babel/preset-react": "^7.27.1",
+    "@babel/preset-typescript": "^7.27.1",
+    "@module-federation/enhanced": "^2.9.2",
+    "@pmmmwh/react-refresh-webpack-plugin": "^0.6.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "babel-loader": "^10.0.0",
+    "css-loader": "^7.1.4",
+    "react-refresh": "^0.19.0",
+    "single-react-refresh-plugin": "^1.0.1",
+    "style-loader": "^4.0.0",
+    "typescript": "^5.9.0",
+    "webpack": "~5.106.2",
+    "webpack-cli": "^6.0.1",
+    "webpack-dev-server": "^5.2.2",
+    "webpack-merge": "^6.0.1"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

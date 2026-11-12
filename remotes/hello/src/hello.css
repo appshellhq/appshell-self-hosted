@@ -1,0 +1,47 @@
+/*
+ * On the application's theme: the registry puts its design tokens on the page as --appshell-*
+ * custom properties, so this page takes the look of whichever application runs it. Scoped to the
+ * page, since the shell owns the rest of it.
+ */
+.hello {
+  max-width: 40rem;
+  padding: var(--appshell-space-xl);
+  color: var(--appshell-on-surface);
+  font-family: var(--appshell-font-body);
+  line-height: var(--appshell-line-height-normal);
+}
+
+.hello h1 {
+  margin: 0 0 var(--appshell-space-md);
+  font-size: var(--appshell-font-size-h3);
+  line-height: var(--appshell-line-height-tight);
+}
+
+.hello p {
+  margin: 0 0 var(--appshell-space-md);
+  color: var(--appshell-text-muted);
+}
+
+.hello code {
+  font-family: var(--appshell-font-mono);
+  color: var(--appshell-on-surface);
+}
+
+.hello button {
+  padding: var(--appshell-space-sm) var(--appshell-space-md);
+  border: 0;
+  border-radius: var(--appshell-radius-md);
+  background: var(--appshell-primary);
+  color: var(--appshell-on-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.hello button:hover {
+  background: var(--appshell-primary-hover);
+}
+
+.hello button:focus-visible {
+  outline: 2px solid var(--appshell-focus-ring);
+  outline-offset: 2px;
+}

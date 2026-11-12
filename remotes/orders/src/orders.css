@@ -1,0 +1,32 @@
+.orders {
+  max-width: 48rem;
+  padding: var(--appshell-space-xl);
+}
+
+.orders h1 {
+  margin: 0 0 var(--appshell-space-lg);
+  font-size: var(--appshell-font-size-h3);
+  line-height: var(--appshell-line-height-tight);
+}
+
+.orders table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.orders th,
+.orders td {
+  padding: var(--appshell-space-sm) var(--appshell-space-md);
+  border-bottom: 1px solid var(--appshell-border);
+  text-align: left;
+}
+
+.orders th {
+  color: var(--appshell-text-muted);
+  font-weight: 600;
+}
+
+.orders .number {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}

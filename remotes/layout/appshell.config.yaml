@@ -1,0 +1,11 @@
+# The application's root. It mounts the pages the other packages contribute, so it contributes no
+# page of its own: no route here.
+#
+# Public, so any application in this registry may adopt it. That's what lets alice clone
+# acme/portal into a scope of her own.
+visibility: public
+
+components:
+  LayoutModule/Layout:
+    metadata:
+      displayName: Layout

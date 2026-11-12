@@ -1,0 +1,133 @@
+# The appshell registry on your machine.
+#
+#   docker compose up --wait
+#   docker compose run --rm seed
+#
+# then open http://localhost:7150/a/acme/portal. The README walks through the rest.
+#
+# Ports on your machine: 7150 the registry, 8080 Keycloak. Nothing else is published, and these
+# two only on 127.0.0.1: their passwords and secrets are in this repository, so nothing else on
+# your network may reach them.
+
+name: appshell
+
+services:
+  # The registry's only store. A replica set of one member: the registry writes in transactions,
+  # which MongoDB allows only on a replica set, and refuses to start on a standalone server.
+  mongodb:
+    image: mongo:8.0
+    command: ['--replSet', 'rs0', '--bind_ip_all']
+    healthcheck:
+      # Initiates the set on its first start, and is healthy once this member is the primary.
+      # The member is named localhost: the registry connects with directConnection=true, so no
+      # client ever has to resolve it.
+      test:
+        - CMD
+        - mongosh
+        - --quiet
+        - --eval
+        - >-
+          try { rs.status().ok } catch (e) {
+          rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'localhost:27017' }] }) }
+          if (!db.hello().isWritablePrimary) quit(1)
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
+    volumes:
+      - mongodb:/data/db
+
+  # Who signs in. A realm imported at start, with the appshell-cli client the CLI signs in
+  # through, two people (alice publishes, bob only views) and the seed's service account.
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0.7
+    command: ['start-dev', '--import-realm']
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      # Tokens name this issuer, the address your browser and the CLI use. The registry and the
+      # seed reach Keycloak inside this network instead, and the dynamic back channel answers
+      # them with addresses they can reach, so nobody edits /etc/hosts.
+      KC_HOSTNAME: http://localhost:8080
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: 'true'
+      KC_HEALTH_ENABLED: 'true'
+    volumes:
+      - ./keycloak:/opt/keycloak/data/import:ro
+    ports:
+      - '127.0.0.1:8080:8080'
+    healthcheck:
+      # The image has no curl, so ask the management port by hand.
+      test:
+        - CMD-SHELL
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/9000 &&
+          printf 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 &&
+          grep -q '"status": "UP"' <&3
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 10s
+
+  # Where packages' code lives: a deployment's bucket or CDN, here a directory on your machine.
+  # The registry never stores code. It fetches it from here, server-side, and serves it to
+  # browsers on the application's own origin. Not published: browsers never come here.
+  bundles:
+    image: nginx:1.29-alpine
+    volumes:
+      - ./bundles:/usr/share/nginx/html:ro
+
+  registry:
+    image: ${REGISTRY_IMAGE:-ghcr.io/appshellhq/appshell-registry:latest}
+    environment:
+      # oidc: the registry verifies every token itself, against Keycloak. Set AUTH_MODE=none for
+      # a first look without signing in, where every request runs as one principal.
+      AUTH_MODE: ${AUTH_MODE:-oidc}
+      AUTH_ISSUER: http://localhost:8080/realms/appshell
+      # Where to find the issuer from inside this network. The registry adds the
+      # /.well-known/openid-configuration path itself.
+      AUTH_DISCOVERY_URL: http://keycloak:8080/realms/appshell
+      AUTH_AUDIENCE: appshell-registry
+      MONGO_URI: mongodb://mongodb:27017/appshell-registry?directConnection=true
+      # The {version} in it is what lets the registry tell browsers a published file never
+      # changes, so they cache it for good.
+      ARTIFACT_BASE_URL: 'http://bundles/{scope}/{name}/{version}/'
+      # Signs the cookie that lets a browser load a private package's code in an application
+      # it was served. Fine on your machine; anywhere else, set your own long random value.
+      GRANT_SECRET: ${GRANT_SECRET:-local-demo-grant-secret-change-me-anywhere-else}
+      APPS_BASE_URL: http://localhost:7150
+      EVENT_BUS: none
+      OTEL_SDK_DISABLED: 'true'
+    ports:
+      - '127.0.0.1:7150:7150'
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      bundles:
+        condition: service_started
+
+  # What a platform team would publish first: acme's layout and pages, and acme/portal. Safe to
+  # run again. Left out of `up`, whose --wait counts it ready as soon as it starts: `docker compose
+  # run --rm seed` runs it in the foreground, so it returns once the portal exists, or fails.
+  seed:
+    profiles: [seed]
+    build:
+      context: .
+      dockerfile: seed/Dockerfile
+    environment:
+      APPSHELL_REGISTRY: http://registry:7150
+      PUBLIC_URL: http://localhost:7150
+      TOKEN_URL: http://keycloak:8080/realms/appshell/protocol/openid-connect/token
+      SEED_CLIENT_ID: appshell-seed
+      SEED_CLIENT_SECRET: seed-secret-for-this-local-demo-only
+    volumes:
+      - ./bundles:/bundles
+    depends_on:
+      registry:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+
+volumes:
+  mongodb:

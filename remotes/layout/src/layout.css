@@ -1,0 +1,61 @@
+/*
+ * On the application's theme: the registry puts its design tokens on the page as --appshell-*
+ * custom properties, so the frame takes the look of whichever application runs it.
+ */
+.layout {
+  display: grid;
+  grid-template-columns: 14rem 1fr;
+  grid-template-rows: auto 1fr;
+  min-height: 100vh;
+  background: var(--appshell-surface);
+  color: var(--appshell-on-surface);
+  font-family: var(--appshell-font-body);
+  line-height: var(--appshell-line-height-normal);
+}
+
+.layout-header {
+  grid-column: 1 / -1;
+  padding: var(--appshell-space-md) var(--appshell-space-lg);
+  border-bottom: 1px solid var(--appshell-border);
+  font-weight: 600;
+}
+
+.layout-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--appshell-space-xs);
+  padding: var(--appshell-space-sm);
+  border-right: 1px solid var(--appshell-border);
+  background: var(--appshell-surface-sunken);
+}
+
+.layout-nav a {
+  padding: var(--appshell-space-sm) var(--appshell-space-md);
+  border-radius: var(--appshell-radius-md);
+  color: var(--appshell-on-surface-sunken);
+  text-decoration: none;
+}
+
+.layout-nav a:hover {
+  background: var(--appshell-surface-raised);
+  color: var(--appshell-on-surface-raised);
+}
+
+.layout-nav a.active {
+  background: var(--appshell-primary);
+  color: var(--appshell-on-primary);
+}
+
+.layout-nav a:focus-visible {
+  outline: 2px solid var(--appshell-focus-ring);
+  outline-offset: 2px;
+}
+
+.layout-main {
+  min-width: 0;
+}
+
+.layout-main > p {
+  padding: var(--appshell-space-xl);
+  color: var(--appshell-text-muted);
+}

@@ -1,0 +1,102 @@
+{
+  "realm": "appshell",
+  "displayName": "appshell (local demo)",
+  "enabled": true,
+  "registrationAllowed": false,
+  "roles": {
+    "realm": [
+      {
+        "name": "appshell-publisher",
+        "description": "May publish packages and change applications. The registry's AUTH_WRITE_ROLE."
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "appshell-cli",
+      "name": "appshell CLI",
+      "description": "appshell login: the device grant with PKCE, as the hosted registry's realm has it",
+      "publicClient": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "attributes": {
+        "oauth2.device.authorization.grant.enabled": "true",
+        "pkce.code.challenge.method": "S256",
+        "access.token.lifespan": "1800"
+      },
+      "protocolMappers": [
+        {
+          "name": "registry audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "appshell-registry",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "appshell-seed",
+      "name": "Seed",
+      "description": "The seed container's identity: a pipeline's, signed in with the client credentials grant",
+      "publicClient": false,
+      "secret": "seed-secret-for-this-local-demo-only",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "attributes": {
+        "access.token.lifespan": "1800"
+      },
+      "protocolMappers": [
+        {
+          "name": "registry audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "appshell-registry",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "id": "2b0c5a52-6f1e-4d8a-9a51-0a11ce000001",
+      "username": "alice",
+      "enabled": true,
+      "email": "alice@acme.example",
+      "emailVerified": true,
+      "firstName": "Alice",
+      "lastName": "Publisher",
+      "credentials": [{ "type": "password", "value": "alice", "temporary": false }],
+      "realmRoles": ["default-roles-appshell", "appshell-publisher"]
+    },
+    {
+      "id": "2b0c5a52-6f1e-4d8a-9a51-0b0b00000002",
+      "username": "bob",
+      "enabled": true,
+      "email": "bob@acme.example",
+      "emailVerified": true,
+      "firstName": "Bob",
+      "lastName": "Viewer",
+      "credentials": [{ "type": "password", "value": "bob", "temporary": false }],
+      "realmRoles": ["default-roles-appshell"]
+    },
+    {
+      "id": "2b0c5a52-6f1e-4d8a-9a51-5eed00000003",
+      "username": "service-account-appshell-seed",
+      "enabled": true,
+      "serviceAccountClientId": "appshell-seed",
+      "realmRoles": ["appshell-publisher"]
+    }
+  ]
+}
