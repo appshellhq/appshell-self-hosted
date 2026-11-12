@@ -20,8 +20,11 @@ type Page = {
   order: number;
 };
 
-/** One or more plain path segments under the application, so a route can't point elsewhere. */
-const ROUTE = /^\/[A-Za-z0-9_-]*(\/[A-Za-z0-9_-]+)*$/;
+/**
+ * The application's root, or plain path segments under it, so a route can't point elsewhere:
+ * `//host` would be another site.
+ */
+const ROUTE = /^\/(?:[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*)?$/;
 
 /**
  * The pages the application's packages contribute: every component that publishes a route, in
