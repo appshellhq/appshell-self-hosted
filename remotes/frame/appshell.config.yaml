@@ -1,0 +1,35 @@
+# Spike (appshellhq/appshell#102). One wrapper package, three pages: the same NiceGUI app framed
+# from each place it could be served, so they can be compared side by side.
+visibility: public
+
+components:
+  # An origin of its own on the application's site: isolated from the shell's page, and its
+  # cookies still first-party.
+  FrameModule/OwnOrigin:
+    metadata:
+      route: /research
+      displayName: Research
+      order: 30
+  # The application's own origin, by path: nothing to allow, and no isolation.
+  FrameModule/SameOrigin:
+    metadata:
+      route: /research-same-origin
+      displayName: Research, same origin
+      order: 31
+  # Another site altogether: what a browser does to a third party's cookies.
+  FrameModule/CrossSite:
+    metadata:
+      route: /research-cross-site
+      displayName: Research, cross-site
+      order: 32
+
+# Where each is served from belongs to a deployment, so an application overrides these.
+vars:
+  OWN_ORIGIN_SRC: http://localhost:7260
+  SAME_ORIGIN_SRC: /frames/research
+  CROSS_SITE_SRC: http://127.0.0.1:7260
+  # fill: the frame takes the rest of the viewport and scrolls inside. content: it grows to its
+  # content and the page scrolls.
+  SIZING: fill
+  # Passed through to the framed app, to show a package's vars reaching Python.
+  DATASET: imagenet-1k

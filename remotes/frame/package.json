@@ -1,0 +1,17 @@
+{
+  "name": "@acme/frame",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Spike (appshellhq/appshell#102): a server-rendered app in an iframe, and the host's half of the bridge to it",
+  "license": "Apache-2.0",
+  "scripts": {
+    "start": "webpack serve --mode development",
+    "build": "webpack --mode production"
+  },
+  "dependencies": {
+    "@appshell/react": "^1.0.0-alpha.137",
+    "@appshell/runtime": "^1.0.0-alpha.137",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  }
+}

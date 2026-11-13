@@ -1,0 +1,8 @@
+.frame {
+  display: block;
+  width: 100%;
+  border: 0;
+  /* The frame paints its own themed background once the bridge has answered. */
+  background: var(--appshell-surface);
+  color-scheme: light dark;
+}
