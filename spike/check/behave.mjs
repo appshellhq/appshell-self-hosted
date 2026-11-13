@@ -44,8 +44,8 @@ for (const page of PAGES) {
 
   // A link inside the frame: does the page's address follow it?
   await step('frame link -> host address', async () => {
-    await frame.getByText('r-102', { exact: true }).click();
-    await frame.getByText('Run r-102').waitFor();
+    await frame.getByText('r-104', { exact: true }).click();
+    await frame.getByText('Run r-104').waitFor();
     await settle(tab);
     return { host: path(tab.url()), frame: path(inner(tab).url()) };
   });
@@ -59,7 +59,7 @@ for (const page of PAGES) {
 
   await step('forward', async () => {
     await tab.goForward();
-    await frame.getByText('Run r-102').waitFor({ timeout: 5000 });
+    await frame.getByText('Run r-104').waitFor({ timeout: 5000 });
     await settle(tab);
     return { host: path(tab.url()), frame: path(inner(tab).url()) };
   });

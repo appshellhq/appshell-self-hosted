@@ -53,11 +53,24 @@ reach is this portal and the app's made-up data: no route carries a token to the
 
 Remove it with `kubectl --context dev delete namespace appshell-spike`.
 
+## Props from the container
+
+What a React remote gets as props, a framed app gets as messages. The portal's header has a
+**Project** selector, which the layout hands to every page's slot as a `project` prop:
+
+- **`acme/frame` sends a slot's props to the app** with the bridge's `init`, and again in a
+  `props` message whenever they change. They cross as JSON, whole each time.
+- **Python hears them with `appshell_frame.on_props`.** The app lists that project's runs, and
+  shows none for a project it doesn't know: a prop is the browser's word.
+- **The published `RemoteSlot` is enough.** It runs its loader again when a prop changes, and
+  the remote stays mounted: the app keeps its document, its socket and its state.
+
 ## What's here
 
 | Path                       | What it is                                                                                              |
 | -------------------------- | ------------------------------------------------------------------------------------------------------- |
 | `remotes/frame/`           | The wrapper remote: the iframe, and the host's half of the bridge (`src/Frame.tsx`)                    |
+| `remotes/layout/`          | The demo's layout, with a project selector in its header that every page gets as a prop                 |
 | `spike/research/`          | The NiceGUI app. `appshell_frame.py`, `bridge.js` and `theme.css` are what a pip package would hold     |
 | `spike/edge/nginx.conf`    | A gateway's part: the portal's one address, the app under it by path, and `frame-src` added to its policy |
 | `spike/compose.yaml`       | The stack, over the demo's `compose.yaml`                                                               |
@@ -83,6 +96,10 @@ dir=$(mktemp -d) && npm install --prefix "$dir" playwright@1.64.1 && cp spike/ch
 - **`gateway.mjs`** is stage 2's, against kind: who the app is told is signed in, the frame's
   own sign-in, the grant check, which replica answers, an idle socket, and a replica deleted
   under an open page. It runs `kubectl`, so start it where the cluster's context is `dev`.
+
+- **`props.mjs`** is also against kind: what a change of project does to a React remote and to
+  the framed app in each placement, a page the frame loads itself, what's on the page before the
+  props arrive, and a project that isn't one.
 
 To try another NiceGUI, build the app with it:
 

@@ -83,8 +83,8 @@ await section('same origin', async () => {
   const r = { ...(await told(frame)) };
   r.socket = await moveSlider(frame);
 
-  await frame.getByText('r-102', { exact: true }).click();
-  await frame.getByText('Run r-102').waitFor();
+  await frame.getByText('r-104', { exact: true }).click();
+  await frame.getByText('Run r-104').waitFor();
   await tab.waitForTimeout(700);
   r.link = { host: new URL(tab.url()).pathname, frame: new URL(tab.frames()[1].url()).pathname };
   await tab.goBack();
