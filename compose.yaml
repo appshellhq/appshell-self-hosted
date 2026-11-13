@@ -77,7 +77,9 @@ services:
       - ./bundles:/usr/share/nginx/html:ro
 
   registry:
-    image: ${REGISTRY_IMAGE:-ghcr.io/appshellhq/appshell-registry:latest}
+    # A release, pinned, so the walkthrough meets the registry CI ran it against. Renovate
+    # proposes the next.
+    image: ${REGISTRY_IMAGE:-ghcr.io/appshellhq/appshell-registry:1.0.0-alpha.1}
     environment:
       # oidc: the registry verifies every token itself, against Keycloak. Set AUTH_MODE=none for
       # a first look without signing in, where every request runs as one principal.
