@@ -1,0 +1,76 @@
+# The NiceGUI app, twice. Each replica holds its own pages' state in memory, so a page and its
+# socket have to reach the same one.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: research
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: research
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: research
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 10
+      securityContext:
+        runAsNonRoot: true
+        # The image's user, by number: the kubelet can't tell that a name isn't root.
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: research
+          image: appshell-spike-research:local
+          env:
+            # Who may frame it, and whose messages its bridge answers.
+            - name: APPSHELL_HOST_ORIGINS
+              value: https://spike.local.appshell.org
+            # The same on every replica, or one wouldn't accept the other's session cookie.
+            - name: STORAGE_SECRET
+              valueFrom:
+                secretKeyRef: { name: spike-secrets, key: storage-secret }
+          ports:
+            - containerPort: 8080
+          # Not a page: every GET of one would build a client for nobody.
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            periodSeconds: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: research
+spec:
+  selector:
+    app.kubernetes.io/name: research
+  ports:
+    - port: 80
+      targetPort: 8080
+---
+# Sticky by who is signed in: the gateway hashes on the subject it takes from its own session
+# (gateway.yaml), so a person's pages and sockets all reach one replica, and move together when
+# it goes. Not on X-Userinfo, which isn't the same bytes on every connection.
+apiVersion: apisix.apache.org/v2
+kind: ApisixUpstream
+metadata:
+  name: research
+spec:
+  ingressClassName: apisix
+  loadbalancer:
+    type: chash
+    hashOn: header
+    key: X-Appshell-Subject

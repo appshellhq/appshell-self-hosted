@@ -1,0 +1,271 @@
+# The gateway's part, on the cluster's own APISIX: who is signed in, where each host goes, and
+# what the registry would do itself if it knew of frames.
+#
+#   spike.local.appshell.org            the portal, and the app under it by path
+#   spike-research.local.appshell.org   the app on an origin of its own, on the portal's site
+#   spike-auth.local.appshell.org       this namespace's Keycloak
+#
+# Sign-in is the console's pattern (navaris/argocd-deployment-repo,
+# components/identity-domains/appshell/console): the gateway signs the browser in as its own
+# confidential client and keeps the session in an encrypted, host-only cookie, so a page holds no
+# token. One client and one session secret for both hosts, and a session on each: the cookie is
+# host-only, so the app's own host signs in again, silently, inside its frame.
+---
+apiVersion: apisix.apache.org/v2
+kind: ApisixPluginConfig
+metadata:
+  name: portal-session
+spec:
+  ingressClassName: apisix
+  plugins:
+    # Identity reaches upstream from the session only, never from the browser: whatever a
+    # request claims in these headers is dropped before openid-connect fills them in. And a
+    # request that changes something must come from this host's own pages.
+    - name: serverless-pre-function
+      enable: true
+      config:
+        phase: rewrite
+        functions:
+          - |
+            return function(conf, ctx)
+              local core = require("apisix.core")
+              if ngx.var.scheme ~= "https" then
+                core.response.set_header("Location", "https://" .. ngx.var.host .. ngx.var.request_uri)
+                return core.response.exit(308)
+              end
+              for _, header in ipairs({ "Authorization", "X-Userinfo", "X-Appshell-Subject", "X-Access-Token", "X-ID-Token", "X-Refresh-Token" }) do
+                ngx.req.clear_header(header)
+              end
+              local method = ngx.req.get_method()
+              if method ~= "GET" and method ~= "HEAD" and method ~= "OPTIONS"
+                 and ngx.req.get_headers()["Origin"] ~= "https://" .. ngx.var.host then
+                return core.response.exit(403, { error_msg = "cross-origin request refused" })
+              end
+            end
+    - name: openid-connect
+      enable: true
+      secretRef: spike-oidc
+      config:
+        bearer_only: false
+        unauth_action: auth
+        realm: appshell
+        discovery: http://keycloak.appshell-spike.svc.cluster.local:8080/realms/appshell/.well-known/openid-configuration
+        scope: openid
+        use_pkce: true
+        use_nonce: true
+        redirect_uri: https://spike.local.appshell.org/oidc/callback
+        # How the app learns who is signed in: the userinfo claims, base64, in X-Userinfo.
+        set_userinfo_header: true
+        set_access_token_header: false
+        set_id_token_header: false
+        set_refresh_token_header: false
+    # After openid-connect, in the same phase: who is signed in, as one stable value. X-Userinfo
+    # is JSON, and its keys come out in a different order from one gateway worker to the next,
+    # so the same person's header differs between connections. Hashing on it sent a page to one
+    # replica and its socket, a new connection, to the other (research.yaml).
+    - name: serverless-post-function
+      enable: true
+      config:
+        phase: rewrite
+        functions:
+          - |
+            return function(conf, ctx)
+              local core = require("apisix.core")
+              local userinfo = core.request.header(ctx, "X-Userinfo")
+              local claims = userinfo and core.json.decode(ngx.decode_base64(userinfo) or "")
+              if claims and claims.sub then
+                core.request.set_header(ctx, "X-Appshell-Subject", claims.sub)
+              end
+            end
+---
+# As portal-session, for the app's own host: only the callback differs.
+apiVersion: apisix.apache.org/v2
+kind: ApisixPluginConfig
+metadata:
+  name: research-session
+spec:
+  ingressClassName: apisix
+  plugins:
+    - name: serverless-pre-function
+      enable: true
+      config:
+        phase: rewrite
+        functions:
+          - |
+            return function(conf, ctx)
+              local core = require("apisix.core")
+              if ngx.var.scheme ~= "https" then
+                core.response.set_header("Location", "https://" .. ngx.var.host .. ngx.var.request_uri)
+                return core.response.exit(308)
+              end
+              for _, header in ipairs({ "Authorization", "X-Userinfo", "X-Appshell-Subject", "X-Access-Token", "X-ID-Token", "X-Refresh-Token" }) do
+                ngx.req.clear_header(header)
+              end
+              local method = ngx.req.get_method()
+              if method ~= "GET" and method ~= "HEAD" and method ~= "OPTIONS"
+                 and ngx.req.get_headers()["Origin"] ~= "https://" .. ngx.var.host then
+                return core.response.exit(403, { error_msg = "cross-origin request refused" })
+              end
+            end
+    - name: openid-connect
+      enable: true
+      secretRef: spike-oidc
+      config:
+        bearer_only: false
+        unauth_action: auth
+        realm: appshell
+        discovery: http://keycloak.appshell-spike.svc.cluster.local:8080/realms/appshell/.well-known/openid-configuration
+        scope: openid
+        use_pkce: true
+        use_nonce: true
+        redirect_uri: https://spike-research.local.appshell.org/oidc/callback
+        set_userinfo_header: true
+        set_access_token_header: false
+        set_id_token_header: false
+        set_refresh_token_header: false
+    # After openid-connect, in the same phase: who is signed in, as one stable value. X-Userinfo
+    # is JSON, and its keys come out in a different order from one gateway worker to the next,
+    # so the same person's header differs between connections. Hashing on it sent a page to one
+    # replica and its socket, a new connection, to the other (research.yaml).
+    - name: serverless-post-function
+      enable: true
+      config:
+        phase: rewrite
+        functions:
+          - |
+            return function(conf, ctx)
+              local core = require("apisix.core")
+              local userinfo = core.request.header(ctx, "X-Userinfo")
+              local claims = userinfo and core.json.decode(ngx.decode_base64(userinfo) or "")
+              if claims and claims.sub then
+                core.request.set_header(ctx, "X-Appshell-Subject", claims.sub)
+              end
+            end
+---
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: portal
+spec:
+  ingressClassName: apisix
+  http:
+    # The app, by path on the portal's own origin, in the portal's session.
+    - name: portal-research
+      priority: 20
+      websocket: true
+      match:
+        hosts:
+          - spike.local.appshell.org
+        paths:
+          - /frames/research
+          - /frames/research/*
+      backends:
+        - serviceName: research
+          servicePort: 80
+      plugin_config_name: portal-session
+      plugins:
+        # The app is served at /, and told the prefix it's under so its links, assets and
+        # socket come out beneath it.
+        - name: proxy-rewrite
+          enable: true
+          config:
+            regex_uri:
+              - ^/frames/research/?(.*)
+              - /$1
+            headers:
+              set:
+                X-Forwarded-Prefix: /frames/research
+        # A private package's equivalent for a framed service. The registry answers for
+        # acme/frame's code only to a browser holding a grant for an application that runs it,
+        # so asking it for that code, with the browser's cookies, asks whether this browser was
+        # served such an application. Anything else is the registry's 404.
+        #
+        # Possible because the app is on the portal's origin, where the grant cookie is sent.
+        # The question is asked in the portal's name, Host and all: a grant counts only on the
+        # host its application is served from (appshellhq/appshell-services#69). The version in
+        # the address is the wart: a registry that knew of frames would answer for the package.
+        - name: forward-auth
+          enable: true
+          config:
+            uri: http://registry.appshell-spike.svc.cluster.local/p/acme/frame/0.2.0/remoteEntry.js
+            request_method: GET
+            request_headers:
+              - Cookie
+              - Host
+            # The registry's first answer for a version fetches it from where it's deployed.
+            # The default, three seconds, refused the first request after a start.
+            timeout: 10000
+    # The portal: its page, its shell and its packages' code.
+    - name: portal-page
+      priority: 10
+      match:
+        hosts:
+          - spike.local.appshell.org
+        paths:
+          - /
+          - /*
+      backends:
+        - serviceName: registry
+          servicePort: 80
+      plugin_config_name: portal-session
+      plugins:
+        # What the registry would do itself if a composition named a frame's origin: its page
+        # policy has no frame-src, so default-src 'self' refuses a frame from anywhere else.
+        #
+        # The identity provider's origin too. frame-src holds a frame to it through every
+        # redirect, and the app's own host signs in by sending its frame there and back.
+        - name: serverless-post-function
+          enable: true
+          config:
+            phase: header_filter
+            functions:
+              - |
+                return function(conf, ctx)
+                  local policy = ngx.header["Content-Security-Policy"]
+                  if type(policy) == "string" then
+                    ngx.header["Content-Security-Policy"] = policy
+                      .. "; frame-src 'self' https://spike-research.local.appshell.org https://spike-auth.local.appshell.org"
+                  end
+                end
+---
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: research
+spec:
+  ingressClassName: apisix
+  http:
+    - name: research
+      priority: 10
+      websocket: true
+      match:
+        hosts:
+          - spike-research.local.appshell.org
+        paths:
+          - /
+          - /*
+      backends:
+        - serviceName: research
+          servicePort: 80
+      plugin_config_name: research-session
+---
+# Sign-in pages and the endpoints a browser is sent to. Not /admin: the admin console stays
+# inside the cluster.
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: keycloak
+spec:
+  ingressClassName: apisix
+  http:
+    - name: keycloak
+      priority: 10
+      match:
+        hosts:
+          - spike-auth.local.appshell.org
+        paths:
+          - /realms/*
+          - /resources/*
+      backends:
+        - serviceName: keycloak
+          servicePort: 8080

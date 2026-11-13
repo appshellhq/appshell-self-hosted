@@ -1,0 +1,18 @@
+# Stage 2 of the spike (appshellhq/appshell#102): the same app behind a real gateway, on kind.
+# Applied by up.sh, which first makes what isn't written down here: the secrets, and the realm.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: appshell-spike
+
+resources:
+  - namespace.yaml
+  - network-policy.yaml
+  - registry.yaml
+  - keycloak.yaml
+  - research.yaml
+  - gateway.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: appshell-spike

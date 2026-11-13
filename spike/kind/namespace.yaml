@@ -1,0 +1,10 @@
+# Everything stage 2 adds to a cluster lives here, so deleting the namespace removes it.
+# Restricted, as a platform team's namespaces are: the app has to run without root.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: appshell-spike
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted

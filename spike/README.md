@@ -27,6 +27,32 @@ times, framed from each place it could be served:
 
 Stop it with `down -v` on the same command, and `rm -rf spike/bundles/acme`.
 
+## Stage 2: behind a real gateway, on kind
+
+The same app in a cluster, behind APISIX: signed in at the gateway, two replicas, and the app
+gated as a private package's code is. It needs a kind cluster that already runs APISIX with its
+ingress controller, a certificate for `*.local.appshell.org`, and those names resolving to it.
+
+```sh
+spike/kind/up.sh
+```
+
+It builds the images, loads them into kind, and applies `spike/kind/` to a namespace of its own,
+`appshell-spike`, with its own registry and Keycloak, so nothing else in the cluster changes.
+Then open <https://spike.local.appshell.org/a/acme/portal/research> and sign in as `alice` /
+`alice`.
+
+| Host                                | What answers                                                        |
+| ----------------------------------- | ------------------------------------------------------------------- |
+| `spike.local.appshell.org`          | The portal, and the app under `/frames/research/` in the same session |
+| `spike-research.local.appshell.org` | The app on an origin of its own, with a session of its own          |
+| `spike-auth.local.appshell.org`     | The namespace's Keycloak: sign-in only, never its admin console      |
+
+The demo's accounts are public, and kind's gateway may listen beyond your machine. What they can
+reach is this portal and the app's made-up data: no route carries a token to the registry.
+
+Remove it with `kubectl --context dev delete namespace appshell-spike`.
+
 ## What's here
 
 | Path                       | What it is                                                                                              |
@@ -35,6 +61,7 @@ Stop it with `down -v` on the same command, and `rm -rf spike/bundles/acme`.
 | `spike/research/`          | The NiceGUI app. `appshell_frame.py`, `bridge.js` and `theme.css` are what a pip package would hold     |
 | `spike/edge/nginx.conf`    | A gateway's part: the portal's one address, the app under it by path, and `frame-src` added to its policy |
 | `spike/compose.yaml`       | The stack, over the demo's `compose.yaml`                                                               |
+| `spike/kind/`              | Stage 2: the stack on kind. `gateway.yaml` is the gateway's part: sign-in, routes, sticky sessions, the grant check |
 | `spike/check/`             | What was driven in a headless browser, and how                                                          |
 
 ## The checks
@@ -52,6 +79,10 @@ dir=$(mktemp -d) && npm install --prefix "$dir" playwright@1.64.1 && cp spike/ch
   app's page can read the shell's, and what the sandbox has to allow.
 - **`edges.mjs`** covers a pinned colour scheme, a frame sized to its content, the first paint,
   the app opened on its own, and its process restarting under an open page.
+
+- **`gateway.mjs`** is stage 2's, against kind: who the app is told is signed in, the frame's
+  own sign-in, the grant check, which replica answers, an idle socket, and a replica deleted
+  under an open page. It runs `kubectl`, so start it where the cluster's context is `dev`.
 
 To try another NiceGUI, build the app with it:
 

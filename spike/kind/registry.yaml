@@ -1,0 +1,305 @@
+# The demo's registry and what it needs, as compose.yaml runs them: its store, where packages'
+# code lives, and the seed that publishes the portal.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mongodb
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mongodb
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mongodb
+          image: mongo:8.0
+          args: ['--replSet', 'rs0', '--bind_ip_all']
+          env:
+            # mongosh keeps its history under HOME.
+            - name: HOME
+              value: /tmp
+          ports:
+            - containerPort: 27017
+          # Initiates the replica set on its first run, and is ready once this member is the
+          # primary: compose.yaml's healthcheck.
+          readinessProbe:
+            exec:
+              command:
+                - mongosh
+                - --quiet
+                - --eval
+                - >-
+                  try { rs.status().ok } catch (e) {
+                  rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'localhost:27017' }] }) }
+                  if (!db.hello().isWritablePrimary) quit(1)
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests: { cpu: 50m, memory: 256Mi }
+            limits: { memory: 768Mi }
+          volumeMounts:
+            - name: data
+              mountPath: /data/db
+      volumes:
+        # Gone with the pod. The seed puts it back.
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb
+spec:
+  selector:
+    app.kubernetes.io/name: mongodb
+  ports:
+    - port: 27017
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bundles
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 100Mi
+---
+# A deployment's bucket or CDN. Python's own file server, from the image already here, in place
+# of compose.yaml's nginx, which wants root.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bundles
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: bundles
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: bundles
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: bundles
+          image: appshell-spike-research:local
+          command: [python, -m, http.server, '8080', --directory, /bundles]
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests: { cpu: 10m, memory: 32Mi }
+            limits: { memory: 128Mi }
+          volumeMounts:
+            - name: bundles
+              mountPath: /bundles
+              readOnly: true
+      volumes:
+        - name: bundles
+          persistentVolumeClaim:
+            claimName: bundles
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bundles
+spec:
+  selector:
+    app.kubernetes.io/name: bundles
+  ports:
+    - port: 80
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: registry
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: registry
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: registry
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: registry
+          # Built from appshell-services and loaded into kind by up.sh.
+          image: appshell/registry:local
+          env:
+            - name: AUTH_MODE
+              value: oidc
+            # What tokens name: the address a browser reaches this Keycloak at.
+            - name: AUTH_ISSUER
+              value: https://spike-auth.local.appshell.org/realms/appshell
+            - name: AUTH_DISCOVERY_URL
+              value: http://keycloak:8080/realms/appshell
+            - name: AUTH_AUDIENCE
+              value: appshell-registry
+            - name: MONGO_URI
+              value: mongodb://mongodb:27017/appshell-registry?directConnection=true
+            - name: ARTIFACT_BASE_URL
+              value: 'http://bundles/{scope}/{name}/{version}/'
+            - name: GRANT_SECRET
+              valueFrom:
+                secretKeyRef: { name: spike-secrets, key: grant-secret }
+            - name: APPS_BASE_URL
+              value: https://spike.local.appshell.org
+            - name: EVENT_BUS
+              value: none
+            - name: OTEL_SDK_DISABLED
+              value: 'true'
+          ports:
+            - containerPort: 7150
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 7150
+            periodSeconds: 5
+            failureThreshold: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests: { cpu: 25m, memory: 128Mi }
+            limits: { memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: registry
+spec:
+  selector:
+    app.kubernetes.io/name: registry
+  ports:
+    - port: 80
+      targetPort: 7150
+---
+# The portal as the seed applies it here: the demo's, with where the framed app is served from
+# in this deployment. The seed adds spec.packages.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: portal
+data:
+  portal.app.yaml: |
+    apiVersion: registry.appshell.org/v1
+    kind: Application
+    name: acme/portal
+    spec:
+      shell:
+        root: acme/layout/Layout
+        title: Acme Portal
+        description: An application composed by your own appshell registry
+        theme:
+          base: neutral
+          accent: steel
+          colorScheme: system
+      overrides:
+        vars:
+          FrameModule:
+            OWN_ORIGIN_SRC: https://spike-research.local.appshell.org
+            SAME_ORIGIN_SRC: /frames/research
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: seed
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: seed
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: seed
+          image: appshell-spike-seed:local
+          env:
+            - name: APPSHELL_REGISTRY
+              value: http://registry
+            - name: PUBLIC_URL
+              value: https://spike.local.appshell.org
+            - name: TOKEN_URL
+              value: http://keycloak:8080/realms/appshell/protocol/openid-connect/token
+            - name: SEED_CLIENT_ID
+              value: appshell-seed
+            # The demo realm's, public in compose.yaml. It publishes to a registry no route
+            # here lets a token reach.
+            - name: SEED_CLIENT_SECRET
+              value: seed-secret-for-this-local-demo-only
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests: { cpu: 25m, memory: 128Mi }
+            limits: { memory: 512Mi }
+          volumeMounts:
+            - name: bundles
+              mountPath: /bundles
+            - name: portal
+              mountPath: /seed/portal.app.yaml
+              subPath: portal.app.yaml
+      volumes:
+        - name: bundles
+          persistentVolumeClaim:
+            claimName: bundles
+        - name: portal
+          configMap:
+            name: portal
