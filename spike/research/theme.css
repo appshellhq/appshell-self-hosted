@@ -1,0 +1,29 @@
+/*
+ * The host's tokens, mapped onto what NiceGUI's pages are drawn with: Quasar's brand colours
+ * and the page's own surface and type. Each falls back to NiceGUI's default, so the app looks
+ * as it always did when it's opened on its own.
+ *
+ * !important because NiceGUI sets its colours as inline custom properties on the body.
+ */
+body {
+  --q-primary: var(--appshell-primary, #5898d4) !important;
+  --q-secondary: var(--appshell-secondary, #26a69a) !important;
+  --q-accent: var(--appshell-info, #9c27b0) !important;
+  --q-positive: var(--appshell-success, #21ba45) !important;
+  --q-negative: var(--appshell-danger, #c10015) !important;
+  --q-info: var(--appshell-info, #31ccec) !important;
+  --q-warning: var(--appshell-warning, #f2c037) !important;
+  --q-dark: var(--appshell-surface-raised, #1d1d1d) !important;
+  --q-dark-page: var(--appshell-surface, #121212) !important;
+}
+
+html[class] body,
+html[class] body.body--dark {
+  background: var(--appshell-surface, revert-layer);
+  color: var(--appshell-on-surface, revert-layer);
+  font-family: var(--appshell-font-body, revert-layer);
+}
+
+html.appshell-pending body {
+  visibility: hidden;
+}
