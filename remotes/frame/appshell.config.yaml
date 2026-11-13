@@ -1,6 +1,9 @@
 # Spike (appshellhq/appshell#102). One wrapper package, three pages: the same NiceGUI app framed
 # from each place it could be served, so they can be compared side by side.
-visibility: public
+#
+# No visibility, so private, as a research group's app would be: its code goes only to a browser
+# the registry served an application that runs it. On kind the gateway asks the registry the same
+# question before it lets a browser reach the app by path (spike/kind/gateway.yaml).
 
 components:
   # An origin of its own on the application's site: isolated from the shell's page, and its

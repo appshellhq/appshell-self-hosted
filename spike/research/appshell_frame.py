@@ -11,6 +11,8 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 import json
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
@@ -55,3 +57,20 @@ def on_host(handler: Callable[[Host], None]) -> None:
         'appshell_init',
         lambda e: handler(Host(vars=e.args.get('vars') or {}, color_scheme=e.args.get('colorScheme', 'system'))),
     )
+
+
+def user() -> dict | None:
+    """Who the gateway signed in, for the page being built: their userinfo claims, or None.
+
+    Read from X-Userinfo, which the gateway fills from its own session and strips from whatever
+    a browser sent. So it's true only while the gateway is the only way in: an app that anything
+    else can reach can be told anything.
+    """
+    header = ui.context.client.request.headers.get('x-userinfo')
+    if not header:
+        return None
+
+    try:
+        return json.loads(base64.b64decode(header))
+    except (binascii.Error, ValueError):
+        return None

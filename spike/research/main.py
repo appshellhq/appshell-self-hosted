@@ -2,6 +2,7 @@
 
 import math
 import os
+import socket
 
 from nicegui import app, ui
 
@@ -35,6 +36,14 @@ def index():
             )
         )
         ui.label(f'Visits this session: {visits}').classes('text-caption').mark('visits')
+        who = appshell_frame.user()
+        ui.label(
+            f'Signed in as {who.get("preferred_username") or who.get("sub")}, from the gateway.'
+            if who
+            else 'Nobody signed in at a gateway.'
+        ).classes('text-caption').mark('user')
+        # Which replica built this page, and so holds its state.
+        ui.label(f'Served by {socket.gethostname()}.').classes('text-caption').mark('pod')
 
         with ui.card().classes('w-full'):
             with ui.row().classes('items-center gap-4'):
