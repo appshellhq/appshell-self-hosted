@@ -1,0 +1,66 @@
+# Spike (appshellhq/appshell#102): the demo's stack again, with a NiceGUI app beside it, on ports
+# of its own so it runs next to a demo that's already up.
+#
+#   docker compose -p appshell-spike -f compose.yaml -f spike/compose.yaml up --wait --build
+#   docker compose -p appshell-spike -f compose.yaml -f spike/compose.yaml run --rm --build seed
+#
+# then open http://localhost:7250/a/acme/portal/research.
+#
+# Ports on your machine: 7250 the portal, through the edge; 7260 the NiceGUI app on an origin of
+# its own. Keycloak isn't published: only the seed signs in, inside the network.
+
+services:
+  keycloak:
+    ports: !reset []
+
+  # Its own bundles, so this stack's builds never meet the demo's.
+  bundles:
+    volumes: !override
+      - ./spike/bundles:/usr/share/nginx/html:ro
+
+  # Reached through the edge, which is the address it gives out.
+  registry:
+    environment:
+      APPS_BASE_URL: http://localhost:7250
+    ports: !reset []
+
+  seed:
+    # Built here: the released seed doesn't publish the frame.
+    image: appshell-spike-seed:local
+    pull_policy: build
+    volumes: !override
+      - ./spike/bundles:/bundles
+
+  # The research group's app, as they'd run it: one process, its pages' state in memory.
+  research:
+    build: ./spike/research
+    environment:
+      # Who may frame it, and whose messages its bridge hears.
+      APPSHELL_HOST_ORIGINS: http://localhost:7250
+    ports:
+      - '127.0.0.1:7260:8080'
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/', timeout=3)
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+  # What a gateway would be: the portal's one address, with the app also served under it by
+  # path. It adds the frames' origins to the registry's policy, standing in for a registry that
+  # knew about them.
+  edge:
+    image: nginx:1.29-alpine
+    volumes:
+      - ./spike/edge/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - '127.0.0.1:7250:80'
+    depends_on:
+      registry:
+        condition: service_healthy
+      research:
+        condition: service_healthy

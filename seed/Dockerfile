@@ -19,12 +19,13 @@ COPY remotes/layout/package.json layout/
 COPY remotes/home/package.json home/
 COPY remotes/orders/package.json orders/
 COPY remotes/hello/package.json hello/
+COPY remotes/frame/package.json frame/
 RUN npm ci --no-audit --no-fund
 
 # Each page as a publish reads it: its build, and the package.json naming it.
 COPY remotes/ ./
-RUN npm run build -w @acme/layout -w @acme/home -w @acme/orders \
-  && for name in layout home orders; do \
+RUN npm run build -w @acme/layout -w @acme/home -w @acme/orders -w @acme/frame \
+  && for name in layout home orders frame; do \
        mkdir -p "/out/$name" \
        && cp -R "$name/package.json" "$name/appshell.config.yaml" "$name/dist" "/out/$name/"; \
      done

@@ -20,7 +20,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 const { APPSHELL_REGISTRY, PUBLIC_URL, TOKEN_URL, SEED_CLIENT_ID, SEED_CLIENT_SECRET } = process.env;
 
 const SCOPE = 'acme';
-const REMOTES = ['layout', 'home', 'orders'];
+const REMOTES = ['layout', 'home', 'orders', 'frame'];
 const BUNDLES = '/bundles';
 
 const waitFor = async (url, what) => {
