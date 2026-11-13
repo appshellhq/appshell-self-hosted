@@ -15,6 +15,17 @@
   let host;
   /** What init carried, kept for Python, which connects later than this runs. */
   let init;
+  /** What the container gave this app's slot, as last heard. */
+  let props = {};
+  /** Whether Python has init, and so hears each change after it. */
+  let delivered = false;
+
+  // For a page's own script, whatever framework drew it. Python is told below.
+  window.appshellFrame = {
+    get props() {
+      return props;
+    },
+  };
 
   const post = (type, body, to) =>
     window.parent.postMessage({ appshell: PROTOCOL, type, ...body }, to);
@@ -62,7 +73,16 @@
       setTimeout(deliver, 50);
       return;
     }
-    window.emitEvent('appshell_init', { vars: init.vars, colorScheme: init.colorScheme });
+    // The props as they are now: they may have changed while the socket was connecting.
+    window.emitEvent('appshell_init', { vars: init.vars, colorScheme: init.colorScheme, props });
+    delivered = true;
+  };
+
+  /** New props: whole, replacing the last, so a missed message costs nothing once the next lands. */
+  const setProps = (next) => {
+    props = next && typeof next === 'object' ? next : {};
+    window.dispatchEvent(new CustomEvent('appshell:props', { detail: props }));
+    if (delivered) window.emitEvent('appshell_props', { props });
   };
 
   const reportSize = () => {
@@ -84,6 +104,7 @@
     if (message.type === 'init') {
       host = event.origin;
       init = message;
+      setProps(message.props);
       applyTheme(message);
       reveal();
       reportRoute();
@@ -91,6 +112,9 @@
       deliver();
     } else if (message.type === 'theme') {
       applyTheme(message);
+    } else if (message.type === 'props') {
+      // Before init there's nobody to tell, and init carries them anyway.
+      if (host) setProps(message.props);
     } else if (message.type === 'navigate') {
       // replace: the host's own navigation already made the history entry.
       if (message.url !== route()) window.location.replace(message.url);

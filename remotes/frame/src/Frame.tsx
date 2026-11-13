@@ -16,6 +16,23 @@ type FrameVars = {
 
 export const frameVars = () => getVars<FrameVars>();
 
+/** What the container gave the slot this page is mounted in, beyond naming the remote. */
+export type SlotProps = Record<string, unknown>;
+
+/**
+ * Props as they can cross to another document: JSON. A function or a React node has no meaning
+ * on the other side, so it's left behind, and what the frame wants to say back is a message of
+ * its own. As text, so two renders' props compare by value.
+ */
+const crossable = (props: SlotProps | undefined) => {
+  try {
+    return JSON.stringify(props ?? {});
+  } catch {
+    // Something circular. Nothing crosses, and the frame keeps what it last had.
+    return '{}';
+  }
+};
+
 /** Names the bridge and its version, so a frame ignores messages meant for something else. */
 const PROTOCOL = 'appshell-frame/1';
 
@@ -56,16 +73,28 @@ const routeUnder = (mount: string) => {
  *
  * The frame can't share the page's modules, so what a remote gets from the shared runtime
  * crosses by postMessage instead: the theme, the colour scheme and its vars go in, and its
- * route and its height come out.
+ * route and its height come out. So do the props its container gave it: with `init`, and again
+ * whenever they change, in a message of their own. The frame is never loaded again for them.
  *
  * It knows nothing of the layout's router, since a remote shares none with its container. It
  * reads and writes the page's address itself.
  */
-export default function Frame({ src }: { src: string }) {
+export default function Frame({ src, props }: { src: string; props?: SlotProps }) {
   const remote = useRemote();
   const { SIZING: sizing, DATASET: dataset } = frameVars();
   const frame = useRef<HTMLIFrameElement>(null);
   const [height, setHeight] = useState<number>();
+
+  const wire = crossable(props);
+  /** The props to answer the frame's next hello with: it says one on every page it loads. */
+  const latest = useRef(wire);
+  /** Posts to the frame, from its first hello on. */
+  const toFrame = useRef<(message: object) => void>(undefined);
+
+  useEffect(() => {
+    latest.current = wire;
+    toFrame.current?.({ type: 'props', props: JSON.parse(wire) });
+  }, [wire]);
 
   // Decided once, at mount. After that the frame navigates itself, and a new src would reload it.
   const [target] = useState(() => {
@@ -102,7 +131,14 @@ export default function Frame({ src }: { src: string }) {
       if (message?.appshell !== PROTOCOL) return;
 
       if (message.type === 'hello') {
-        post({ type: 'init', ...theme(), sizing, vars: { DATASET: dataset } });
+        toFrame.current = post;
+        post({
+          type: 'init',
+          ...theme(),
+          sizing,
+          vars: { DATASET: dataset },
+          props: JSON.parse(latest.current),
+        });
       } else if (message.type === 'route') {
         current = message.route.startsWith(target.path)
           ? message.route.slice(target.path.length) || '/'
@@ -140,6 +176,7 @@ export default function Frame({ src }: { src: string }) {
     navigation?.addEventListener('currententrychange', onHostNavigation);
 
     return () => {
+      toFrame.current = undefined;
       schemeObserver.disconnect();
       window.removeEventListener('message', onMessage);
       window.removeEventListener('popstate', onHostNavigation);

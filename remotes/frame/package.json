@@ -1,6 +1,6 @@
 {
   "name": "@acme/frame",
-  "version": "0.2.0",
+  "version": "0.3.1",
   "private": true,
   "description": "Spike (appshellhq/appshell#102): a server-rendered app in an iframe, and the host's half of the bridge to it",
   "license": "Apache-2.0",

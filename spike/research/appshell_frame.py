@@ -7,6 +7,7 @@
     @ui.page('/')
     def index():
         appshell_frame.on_host(lambda host: ui.notify(host.vars['DATASET']))
+        appshell_frame.on_props(lambda props: ui.notify(props.get('project')))
 """
 
 from __future__ import annotations
@@ -33,6 +34,8 @@ class Host:
 
     vars: dict[str, str | int | float] = field(default_factory=dict)
     color_scheme: str = 'system'
+    #: What the container gave this app's slot when the page loaded. See on_props.
+    props: dict[str, object] = field(default_factory=dict)
 
 
 def install(*, host_origins: Sequence[str]) -> None:
@@ -55,8 +58,30 @@ def on_host(handler: Callable[[Host], None]) -> None:
     """Calls handler in this page once the host has answered. Never, when the app isn't framed."""
     ui.on(
         'appshell_init',
-        lambda e: handler(Host(vars=e.args.get('vars') or {}, color_scheme=e.args.get('colorScheme', 'system'))),
+        lambda e: handler(
+            Host(
+                vars=e.args.get('vars') or {},
+                color_scheme=e.args.get('colorScheme', 'system'),
+                props=_props(e.args),
+            )
+        ),
     )
+
+
+def on_props(handler: Callable[[dict[str, object]], None]) -> None:
+    """Calls handler in this page with the props its container gave it: once the host has
+    answered, and again each time they change. Never, when the app isn't framed.
+
+    They are JSON, whole each time, and the browser's word: an id among them names what to show,
+    and whether this user may see it is still the app's to check.
+    """
+    ui.on('appshell_init', lambda e: handler(_props(e.args)))
+    ui.on('appshell_props', lambda e: handler(_props(e.args)))
+
+
+def _props(args: dict) -> dict[str, object]:
+    props = args.get('props')
+    return props if isinstance(props, dict) else {}
 
 
 def user() -> dict | None:

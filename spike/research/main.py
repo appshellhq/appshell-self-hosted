@@ -11,11 +11,27 @@ import appshell_frame
 appshell_frame.install(host_origins=os.environ.get('APPSHELL_HOST_ORIGINS', '').split())
 
 RUNS = [
-    {'id': 'r-104', 'model': 'resnet50', 'lr': 0.001, 'accuracy': 0.912},
-    {'id': 'r-103', 'model': 'resnet50', 'lr': 0.01, 'accuracy': 0.874},
-    {'id': 'r-102', 'model': 'vit-b16', 'lr': 0.0003, 'accuracy': 0.931},
-    {'id': 'r-101', 'model': 'vit-b16', 'lr': 0.003, 'accuracy': 0.902},
+    {'id': 'r-104', 'project': 'vision', 'model': 'resnet50', 'lr': 0.001, 'accuracy': 0.912},
+    {'id': 'r-103', 'project': 'vision', 'model': 'resnet50', 'lr': 0.01, 'accuracy': 0.874},
+    {'id': 'r-102', 'project': 'language', 'model': 'vit-b16', 'lr': 0.0003, 'accuracy': 0.931},
+    {'id': 'r-101', 'project': 'language', 'model': 'vit-b16', 'lr': 0.003, 'accuracy': 0.902},
 ]
+PROJECTS = {run['project'] for run in RUNS}
+
+
+def projects_in(props: dict) -> tuple[set[str], str]:
+    """The projects to show for what the container named, and what to say about it: every
+    project when it named none, and none when it named one that isn't ours.
+
+    A prop is the browser's word, so it's checked like any other input. Here that is only
+    whether the project exists. A real app would also ask whether this user may see it.
+    """
+    named = props.get('project')
+    if named is None:
+        return PROJECTS, 'No project from the container.'
+    if not isinstance(named, str) or named not in PROJECTS:
+        return set(), f'No project named {str(named)[:40]!r}.'
+    return {named}, f'Project {named}, from the container.'
 
 
 def curve(lr: float) -> list[list[float]]:
@@ -35,6 +51,7 @@ def index():
                 f'Dataset {host.vars.get("DATASET")}, from the host. Colour scheme: {host.color_scheme}.'
             )
         )
+        from_container = ui.label('No project from the container.').classes('text-caption').mark('project')
         ui.label(f'Visits this session: {visits}').classes('text-caption').mark('visits')
         who = appshell_frame.user()
         ui.label(
@@ -62,12 +79,25 @@ def index():
 
             slider.on_value_change(redraw)
 
-        with ui.card().classes('w-full'):
+        # Every run until the container names a project: the page is built before it can.
+        @ui.refreshable
+        def runs(projects: set[str] = PROJECTS):
             for run in RUNS:
-                with ui.row().classes('items-center gap-6'):
-                    ui.link(run['id'], f'/runs/{run["id"]}').mark(f'run-{run["id"]}')
-                    ui.label(run['model'])
-                    ui.label(f'{run["accuracy"]:.1%}')
+                if run['project'] in projects:
+                    with ui.row().classes('items-center gap-6'):
+                        ui.link(run['id'], f'/runs/{run["id"]}').mark(f'run-{run["id"]}')
+                        ui.label(run['model'])
+                        ui.label(f'{run["accuracy"]:.1%}')
+
+        with ui.card().classes('w-full'):
+            runs()
+
+        def show(props: dict):
+            projects, said = projects_in(props)
+            from_container.set_text(said)
+            runs.refresh(projects)
+
+        appshell_frame.on_props(show)
 
         with ui.dialog() as dialog, ui.card():
             ui.label('Archive this experiment?').classes('text-h6')
@@ -98,6 +128,10 @@ def run(run_id: str):
             return
 
         ui.label(f'Run {found["id"]}').classes('text-h5').mark('run-title')
+        # A page of its own, loaded again by the frame: the host answers its hello with the
+        # props as they are now.
+        from_container = ui.label('No project from the container.').classes('text-caption').mark('project')
+        appshell_frame.on_props(lambda props: from_container.set_text(projects_in(props)[1]))
         ui.label(f'{found["model"]}, learning rate {found["lr"]}, accuracy {found["accuracy"]:.1%}')
         ui.echart({
             'xAxis': {'type': 'value', 'name': 'epoch'},

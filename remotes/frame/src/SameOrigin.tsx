@@ -1,5 +1,5 @@
-import Frame, { frameVars } from './Frame';
+import Frame, { frameVars, type SlotProps } from './Frame';
 
-export default function SameOrigin() {
-  return <Frame src={frameVars().SAME_ORIGIN_SRC} />;
+export default function SameOrigin(props: SlotProps) {
+  return <Frame src={frameVars().SAME_ORIGIN_SRC} props={props} />;
 }
