@@ -8,8 +8,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN useradd --create-home --uid 10001 app
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# The version the group runs. 4.0.0 came out on 4 November 2026: build with it to try the bridge there.
+ARG NICEGUI_VERSION=3.19.0
+RUN pip install --no-cache-dir nicegui==${NICEGUI_VERSION}
 
 COPY . .
 USER app
