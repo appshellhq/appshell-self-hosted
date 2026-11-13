@@ -190,6 +190,32 @@ The registry verifies tokens from any OpenID Connect provider: set `AUTH_ISSUER`
 - **The CLI's sign-in** uses the device grant with PKCE, on a public client named `appshell-cli`.
   Name another with `appshell config init --client-id`.
 
+## Checking the images
+
+The registry's image and the seed's are signed by the GitHub workflows that published them, with
+no key to trust. [cosign](https://docs.sigstore.dev/cosign/system_config/installation/) 3 checks
+each signature and which workflow made it. Run these from this directory, so they check the
+versions `compose.yaml` names:
+
+```sh
+cosign verify "$(docker compose config --images | grep appshell-registry)" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp '^https://github\.com/appshellhq/appshell-services/\.github/workflows/promote\.yml@refs/tags/v'
+
+cosign verify "$(docker compose --profile seed config --images | grep self-hosted-seed)" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp '^https://github\.com/appshellhq/appshell-self-hosted/\.github/workflows/release\.yml@refs/tags/v'
+```
+
+Each image also carries an SBOM and its build's provenance:
+
+```sh
+docker buildx imagetools inspect "$(docker compose config --images | grep appshell-registry)" \
+  --format '{{ json .SBOM }}'
+```
+
+Use `.Provenance` for the provenance.
+
 ## Another registry image
 
 ```sh
