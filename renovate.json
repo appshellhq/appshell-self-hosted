@@ -32,7 +32,7 @@
       "description": "Build tooling can't reach a reader's browser except through the build CI runs. One grouped PR a week.",
       "matchDepTypes": ["devDependencies"],
       "matchUpdateTypes": ["minor", "patch"],
-      "matchPackageNames": ["*", "!/^@appshell//"],
+      "matchPackageNames": ["!/^@appshell//"],
       "groupName": "dev dependencies"
     },
     {
