@@ -2,8 +2,14 @@ import './layout.css';
 
 import { RemoteSlot } from '@appshell/react';
 import { getBasePath, getRemotes } from '@appshell/runtime';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { BrowserRouter, Navigate, NavLink, Route, Routes } from 'react-router';
+
+/**
+ * Spike (appshellhq/appshell#102): something the container knows and its pages don't, to hand
+ * each of them as a prop. A real portal would get these from somewhere.
+ */
+const PROJECTS = ['vision', 'language'];
 
 /** The metadata keys this layout reads, as a package publishes them in its appshell.config.yaml. */
 type PageMetadata = {
@@ -59,11 +65,22 @@ const pagesOf = (remotes: Record<string, { metadata?: PageMetadata }>): Page[] =
 export default function Layout() {
   const pages = useMemo(() => pagesOf(getRemotes<PageMetadata>()), []);
   const start = pages[0]?.route;
+  const [project, setProject] = useState(PROJECTS[0]);
 
   return (
     <BrowserRouter basename={getBasePath()}>
       <div className="layout">
-        <header className="layout-header">{document.title}</header>
+        <header className="layout-header">
+          <span className="layout-title">{document.title}</span>
+          <label>
+            Project
+            <select value={project} onChange={(event) => setProject(event.target.value)}>
+              {PROJECTS.map((name) => (
+                <option key={name}>{name}</option>
+              ))}
+            </select>
+          </label>
+        </header>
         <nav className="layout-nav" aria-label="Pages">
           {pages.map(({ remote, route, name }) => (
             <NavLink key={remote} to={route} end={route === '/'}>
@@ -77,7 +94,7 @@ export default function Layout() {
               <Route
                 key={remote}
                 path={route === '/' ? '/*' : `${route}/*`}
-                element={<RemoteSlot key={remote} remote={remote} />}
+                element={<RemoteSlot key={remote} remote={remote} project={project} />}
               />
             ))}
             {start && start !== '/' && <Route index element={<Navigate to={start} replace />} />}

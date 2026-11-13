@@ -17,7 +17,24 @@
   grid-column: 1 / -1;
   padding: var(--appshell-space-md) var(--appshell-space-lg);
   border-bottom: 1px solid var(--appshell-border);
+  display: flex;
+  align-items: center;
+  gap: var(--appshell-space-lg);
+}
+
+.layout-title {
+  margin-right: auto;
   font-weight: 600;
+}
+
+.layout-header label {
+  display: flex;
+  align-items: center;
+  gap: var(--appshell-space-sm);
+}
+
+.layout-header select {
+  font: inherit;
 }
 
 .layout-nav {
