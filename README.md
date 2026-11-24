@@ -181,7 +181,8 @@ between modes, so start clean (`down -v`) when you switch.
 
 ## Your own identity provider
 
-The registry works with any OpenID Connect provider; the walkthrough's Keycloak is one. To sign in
+The registry works with any OpenID Connect provider; the walkthrough's Keycloak is one. The seed
+signs in through the bundled Keycloak, so [start it](#start-it) and seed it first. Then, to sign in
 through yours, put its settings in a `.env` file beside `compose.yaml`, which Compose reads, and
 start the registry again:
 
@@ -191,7 +192,7 @@ docker compose up --wait
 
 The seeded portal stays. `acme` belongs to the seed's account in the bundled Keycloak, so nobody
 signed in through your provider can change it, as alice couldn't in step 3. Sign in through yours
-and claim a scope of your own, then carry on from step 3:
+and claim a scope of your own:
 
 ```sh
 source ./env.sh
@@ -201,6 +202,10 @@ npx appshell config init --auth-issuer <your issuer> --client-id <your CLI's cli
 npx appshell login
 npx appshell scopes create <scope>
 ```
+
+Then carry on from [step 3](#3-copy-the-portal-into-your-scope), with your scope wherever steps 3 to 7
+say `alice`: the portal you clone, the bundles directory you copy to, and the package you activate.
+Skip step 8, whose alice and bob are the bundled Keycloak's accounts.
 
 ### What your provider needs
 
