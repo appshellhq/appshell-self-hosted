@@ -79,16 +79,23 @@ services:
   registry:
     # A release, pinned, so the walkthrough meets the registry CI ran it against. Renovate
     # proposes the next.
-    image: ${REGISTRY_IMAGE:-ghcr.io/appshellhq/appshell-registry:1.0.0-alpha.1}
+    image: ${REGISTRY_IMAGE:-ghcr.io/appshellhq/appshell-registry:1.0.0-alpha.2}
     environment:
-      # oidc: the registry verifies every token itself, against Keycloak. Set AUTH_MODE=none for
-      # a first look without signing in, where every request runs as one principal.
+      # oidc: the registry verifies every token itself, against Keycloak unless a .env file here
+      # names another provider (the README's "Your own identity provider"). Set AUTH_MODE=none
+      # for a first look without signing in, where every request runs as one principal.
       AUTH_MODE: ${AUTH_MODE:-oidc}
-      AUTH_ISSUER: http://localhost:8080/realms/appshell
+      AUTH_ISSUER: ${AUTH_ISSUER:-http://localhost:8080/realms/appshell}
       # Where to find the issuer from inside this network. The registry adds the
-      # /.well-known/openid-configuration path itself.
-      AUTH_DISCOVERY_URL: http://keycloak:8080/realms/appshell
-      AUTH_AUDIENCE: appshell-registry
+      # /.well-known/openid-configuration path itself. Set it empty for a provider outside this
+      # network, which the registry then finds at AUTH_ISSUER.
+      AUTH_DISCOVERY_URL: ${AUTH_DISCOVERY_URL-http://keycloak:8080/realms/appshell}
+      AUTH_AUDIENCE: ${AUTH_AUDIENCE:-appshell-registry}
+      # Where a person's token carries roles and a username, and the role that may publish.
+      # Unset, they're Keycloak's: realm_access.roles, preferred_username, appshell-publisher.
+      AUTH_ROLES_CLAIM: ${AUTH_ROLES_CLAIM:-}
+      AUTH_USERNAME_CLAIM: ${AUTH_USERNAME_CLAIM:-}
+      AUTH_WRITE_ROLE: ${AUTH_WRITE_ROLE-appshell-publisher}
       MONGO_URI: mongodb://mongodb:27017/appshell-registry?directConnection=true
       # The {version} in it is what lets the registry tell browsers a published file never
       # changes, so they cache it for good.

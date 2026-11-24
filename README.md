@@ -181,14 +181,98 @@ between modes, so start clean (`down -v`) when you switch.
 
 ## Your own identity provider
 
-The registry verifies tokens from any OpenID Connect provider: set `AUTH_ISSUER`, and
-`AUTH_AUDIENCE` to the audience its tokens carry.
+The registry works with any OpenID Connect provider; the walkthrough's Keycloak is one. To sign in
+through yours, put its settings in a `.env` file beside `compose.yaml`, which Compose reads, and
+start the registry again:
 
-- **Roles:** the registry reads them from Keycloak's `realm_access.roles` claim. Another provider's
-  tokens need that claim to carry `appshell-publisher`. Support for Entra ID's and Okta's own role
-  claims is coming.
-- **The CLI's sign-in** uses the device grant with PKCE, on a public client named `appshell-cli`.
-  Name another with `appshell config init --client-id`.
+```sh
+docker compose up --wait
+```
+
+The seeded portal stays. `acme` belongs to the seed's account in the bundled Keycloak, so nobody
+signed in through your provider can change it, as alice couldn't in step 3. Sign in through yours
+and claim a scope of your own, then carry on from step 3:
+
+```sh
+source ./env.sh
+cd remotes
+npx appshell config init --auth-issuer <your issuer> --client-id <your CLI's client> \
+  --default-scope <scope> --application <scope>/portal
+npx appshell login
+npx appshell scopes create <scope>
+```
+
+### What your provider needs
+
+- **Access tokens that are JWTs,** signed with RSA, RSA-PSS or ECDSA keys it publishes at its
+  discovery document's `jwks_uri`. The registry can't check opaque (reference) tokens.
+- **An audience for the registry** in every access token, which `AUTH_AUDIENCE` names. It's also
+  how the registry tells an access token from an ID token when a provider marks neither, so an ID
+  token must never carry it.
+- **A claim that carries the role,** or group, that may publish. `AUTH_ROLES_CLAIM` names the
+  claim, and `AUTH_WRITE_ROLE` the value, matched exactly.
+- **A public client for the CLI** that allows the device authorization grant. The CLI signs in as
+  `appshell-cli` unless `--client-id` names another.
+
+### Settings
+
+| Setting               | The bundled Keycloak                    | What it is                                                                                                  |
+| --------------------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `AUTH_ISSUER`         | `http://localhost:8080/realms/appshell` | The issuer, exactly as its tokens' `iss` says it.                                                           |
+| `AUTH_DISCOVERY_URL`  | `http://keycloak:8080/realms/appshell`  | Where to reach it from inside Compose. Empty for a provider outside it, which the registry then finds at `AUTH_ISSUER`. |
+| `AUTH_AUDIENCE`       | `appshell-registry`                     | The audience its access tokens carry for the registry.                                                      |
+| `AUTH_ROLES_CLAIM`    | unset, which reads `realm_access.roles` | The claim that carries roles: a name, or a dotted path into nested claims. One value may be a string.      |
+| `AUTH_WRITE_ROLE`     | `appshell-publisher`                    | The role that may publish. With directory groups issued as DNs, the whole DN.                              |
+| `AUTH_USERNAME_CLAIM` | unset, which reads `preferred_username` | The claim that carries a username, which falls back to the subject (`sub`).                                |
+
+### Recipes
+
+These come from each provider's documentation; only Keycloak is tried here.
+
+**PingFederate.** The CLI's client uses an access token manager that issues JSON Web Tokens, not
+reference tokens, and signs them with the centralized signing key, so the key is in `/pf/JWKS`, the
+discovery document's `jwks_uri`. Its `aud` is the registry's audience, and its attribute contract
+includes the groups. Setting its Type Header Value to `at+jwt` marks its tokens as access tokens,
+but the audience is enough.
+
+```sh
+AUTH_ISSUER=https://pingfederate.example.com
+AUTH_DISCOVERY_URL=
+AUTH_AUDIENCE=appshell-registry
+AUTH_ROLES_CLAIM=groups
+AUTH_WRITE_ROLE=appshell-publishers
+# The claim your attribute contract maps a username to, if not preferred_username.
+AUTH_USERNAME_CLAIM=uid
+```
+
+**Microsoft Entra ID.** Register the registry as an API with an app role, `appshell-publisher`,
+assigned to whoever may publish, and version 2 access tokens (`requestedAccessTokenVersion: 2` in
+its manifest). Register the CLI as a second app that allows public client flows and may call the
+registry's API. Its access tokens are for the registry only when the CLI asks for the API's scope,
+so sign in with it: `npx appshell login --scope "openid profile offline_access api://<registry's
+client ID>/<scope>"`.
+
+```sh
+AUTH_ISSUER=https://login.microsoftonline.com/<tenant ID>/v2.0
+AUTH_DISCOVERY_URL=
+# The registry app's application (client) ID, which version 2 access tokens carry as their aud.
+AUTH_AUDIENCE=<registry's client ID>
+AUTH_ROLES_CLAIM=roles
+AUTH_WRITE_ROLE=appshell-publisher
+```
+
+**Okta.** Use a custom authorization server, such as `default`: the org authorization server's
+access tokens are for Okta's own APIs. Add a `groups` claim to its access tokens, and register the
+CLI as a native app that allows the device authorization grant.
+
+```sh
+AUTH_ISSUER=https://<your Okta domain>/oauth2/default
+AUTH_DISCOVERY_URL=
+# The authorization server's audience.
+AUTH_AUDIENCE=api://default
+AUTH_ROLES_CLAIM=groups
+AUTH_WRITE_ROLE=appshell-publishers
+```
 
 ## Checking the images
 
