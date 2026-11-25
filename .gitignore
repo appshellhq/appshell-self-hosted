@@ -8,3 +8,6 @@ bundles/*
 
 # The CLI's config and credentials for this demo (env.sh).
 .appshell/
+
+# Your own identity provider's settings, which Compose reads (README).
+.env
