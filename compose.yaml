@@ -79,7 +79,7 @@ services:
   registry:
     # A release, pinned, so the walkthrough meets the registry CI ran it against. Renovate
     # proposes the next.
-    image: ${REGISTRY_IMAGE:-ghcr.io/appshellhq/appshell-registry:1.0.0-alpha.3}
+    image: ${REGISTRY_IMAGE:-ghcr.io/appshellhq/appshell-registry:1.0.0}
     environment:
       # oidc: the registry verifies every token itself, against Keycloak unless a .env file here
       # names another provider (the README's "Your own identity provider"). Set AUTH_MODE=none
