@@ -205,7 +205,8 @@ npx appshell scopes create <scope>
 
 Then carry on from [step 3](#3-copy-the-portal-into-your-scope), with your scope wherever steps 3 to 7
 say `alice`: the portal you clone, the bundles directory you copy to, and the package you activate.
-Skip step 8, whose alice and bob are the bundled Keycloak's accounts.
+`hello` declares no scope, so `publish` sends it to the default scope `config init` set. Skip step 8,
+whose alice and bob are the bundled Keycloak's accounts.
 
 ### What your provider needs
 
@@ -217,7 +218,14 @@ Skip step 8, whose alice and bob are the bundled Keycloak's accounts.
 - **A claim that carries the role,** or group, that may publish. `AUTH_ROLES_CLAIM` names the
   claim, and `AUTH_WRITE_ROLE` the value, matched exactly.
 - **A public client for the CLI** that allows the device authorization grant. The CLI signs in as
-  `appshell-cli` unless `--client-id` names another.
+  `appshell-cli` unless `--client-id` names another. It sends PKCE with the grant, which the bundled
+  Keycloak requires, but the grant's standard doesn't define it, and some providers refuse it: for
+  those, add `--no-pkce` to `config init`.
+
+A person's own scope is their username, when that's a valid scope name: lower-case letters, digits,
+`-` and `_`. Many providers' usernames are email addresses, which aren't, and then the person has no
+own scope. That's fine for the walkthrough, which claims a scope and makes it the default. To give
+everyone one, point `AUTH_USERNAME_CLAIM` at a claim that holds a valid name.
 
 ### Settings
 
@@ -228,11 +236,11 @@ Skip step 8, whose alice and bob are the bundled Keycloak's accounts.
 | `AUTH_AUDIENCE`       | `appshell-registry`                     | The audience its access tokens carry for the registry.                                                      |
 | `AUTH_ROLES_CLAIM`    | unset, which reads `realm_access.roles` | The claim that carries roles: a name, or a dotted path into nested claims. One value may be a string.      |
 | `AUTH_WRITE_ROLE`     | `appshell-publisher`                    | The role that may publish. With directory groups issued as DNs, the whole DN.                              |
-| `AUTH_USERNAME_CLAIM` | unset, which reads `preferred_username` | The claim that carries a username, which falls back to the subject (`sub`).                                |
+| `AUTH_USERNAME_CLAIM` | unset, which reads `preferred_username` | The claim that carries a username, which falls back to the subject (`sub`). It's the person's own scope too, when it's a valid scope name. |
 
 ### Recipes
 
-These come from each provider's documentation; only Keycloak is tried here.
+Keycloak and Okta are tried here. PingFederate's and Entra ID's come from their documentation.
 
 **PingFederate.** The CLI's client uses an access token manager that issues JSON Web Tokens, not
 reference tokens, and signs them with the centralized signing key, so the key is in `/pf/JWKS`, the
@@ -267,8 +275,16 @@ AUTH_WRITE_ROLE=appshell-publisher
 ```
 
 **Okta.** Use a custom authorization server, such as `default`: the org authorization server's
-access tokens are for Okta's own APIs. Add a `groups` claim to its access tokens, and register the
-CLI as a native app that allows the device authorization grant.
+access tokens are for Okta's own APIs. In it:
+
+- **A `groups` claim** in access tokens, with value type Groups and a filter such as "Starts with
+  `appshell`". Put whoever may publish in an `appshell-publishers` group.
+- **An access policy** for the CLI's app, with a rule that allows the Device Authorization grant.
+
+Register the CLI as a native app with the Device Authorization and Refresh Token grants. Okta refuses
+PKCE on the device grant, so sign in with `--no-pkce`:
+`npx appshell config init --auth-issuer <issuer> --client-id <client ID> --no-pkce …`. Its usernames
+are email addresses, so nobody has an own scope: name one with `--default-scope`, as above.
 
 ```sh
 AUTH_ISSUER=https://<your Okta domain>/oauth2/default
