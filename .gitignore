@@ -9,5 +9,7 @@ bundles/*
 # The CLI's config and credentials for this demo (env.sh).
 .appshell/
 
-# Your own identity provider's settings, which Compose reads (README).
+# Your own identity provider's settings, which Compose reads, and its CA (README).
 .env
+compose.override.yaml
+ca.pem
