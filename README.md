@@ -217,10 +217,12 @@ whose alice and bob are the bundled Keycloak's accounts.
   token must never carry it.
 - **A claim that carries the role,** or group, that may publish. `AUTH_ROLES_CLAIM` names the
   claim, and `AUTH_WRITE_ROLE` the value, matched exactly.
-- **A public client for the CLI** that allows the device authorization grant. The CLI signs in as
-  `appshell-cli` unless `--client-id` names another. It sends PKCE with the grant, which the bundled
-  Keycloak requires, but the grant's standard doesn't define it, and some providers refuse it: for
-  those, add `--no-pkce` to `config init`.
+- **A public client for the CLI** that allows the device authorization grant, and the refresh token
+  grant so a login lasts. The CLI signs in as `appshell-cli` unless `--client-id` names another. It
+  sends PKCE with the grant, which the bundled Keycloak requires, but the grant's standard doesn't
+  define it, and some providers refuse it: for those, add `--no-pkce` to `config init`.
+- **A certificate the registry trusts,** when your provider serves HTTPS on one from your own CA:
+  see [your provider's certificate](#your-providers-certificate).
 
 A person's own scope is their username, when that's a valid scope name: lower-case letters, digits,
 `-` and `_`. Many providers' usernames are email addresses, which aren't, and then the person has no
@@ -238,15 +240,47 @@ everyone one, point `AUTH_USERNAME_CLAIM` at a claim that holds a valid name.
 | `AUTH_WRITE_ROLE`     | `appshell-publisher`                    | The role that may publish. With directory groups issued as DNs, the whole DN.                              |
 | `AUTH_USERNAME_CLAIM` | unset, which reads `preferred_username` | The claim that carries a username, which falls back to the subject (`sub`). It's the person's own scope too, when it's a valid scope name. |
 
+### Your provider's certificate
+
+If your provider's certificate comes from your own CA, the registry and the CLI need that CA's
+certificate. Put it beside `compose.yaml` as `ca.pem`, and give it to the registry in a
+`compose.override.yaml`, which Compose reads along with `compose.yaml`:
+
+```yaml
+services:
+  registry:
+    environment:
+      NODE_EXTRA_CA_CERTS: /etc/appshell/ca.pem
+    volumes:
+      - ./ca.pem:/etc/appshell/ca.pem:ro
+```
+
+Then `docker compose up --wait`, and give the CLI the same file, from `remotes`:
+
+```sh
+npx appshell config set ca-file "$PWD/../ca.pem"
+```
+
+Until the registry trusts it, the registry logs that it couldn't load your provider's signing keys,
+and refuses every person's token.
+
 ### Recipes
 
-Keycloak and Okta are tried here. PingFederate's and Entra ID's come from their documentation.
+All four are tried here: the bundled Keycloak, PingFederate 13.1, Microsoft Entra ID and Okta.
 
-**PingFederate.** The CLI's client uses an access token manager that issues JSON Web Tokens, not
-reference tokens, and signs them with the centralized signing key, so the key is in `/pf/JWKS`, the
-discovery document's `jwks_uri`. Its `aud` is the registry's audience, and its attribute contract
-includes the groups. Setting its Type Header Value to `at+jwt` marks its tokens as access tokens,
-but the audience is enough.
+**PingFederate.** The CLI's OAuth client is public, with no client authentication, and allows the
+Device Authorization and Refresh Token grants. Its access token manager issues JSON Web Tokens, not
+reference tokens:
+
+- **Signed with the centralized signing key,** so the key is in `/pf/JWKS`, the discovery
+  document's `jwks_uri`.
+- **Issuer Claim Value set to the issuer,** which is the base URL. Left blank, tokens carry no
+  `iss`, and the registry refuses them. Audience Claim Value is the registry's audience.
+- **An attribute contract with `sub`, a username and `groups`,** mapped from your directory.
+
+Setting its Type Header Value to `at+jwt` marks its tokens as access tokens, which works without
+`AUTH_AUDIENCE` too. PingFederate takes the CLI's PKCE. A company's PingFederate usually has a
+certificate from its own CA: see [your provider's certificate](#your-providers-certificate).
 
 ```sh
 AUTH_ISSUER=https://pingfederate.example.com
@@ -258,12 +292,27 @@ AUTH_WRITE_ROLE=appshell-publishers
 AUTH_USERNAME_CLAIM=uid
 ```
 
-**Microsoft Entra ID.** Register the registry as an API with an app role, `appshell-publisher`,
-assigned to whoever may publish, and version 2 access tokens (`requestedAccessTokenVersion: 2` in
-its manifest). Register the CLI as a second app that allows public client flows and may call the
-registry's API. Its access tokens are for the registry only when the CLI asks for the API's scope,
-so sign in with it: `npx appshell login --scope "openid profile offline_access api://<registry's
-client ID>/<scope>"`.
+**Microsoft Entra ID.** Register two apps:
+
+- **The registry,** as an API:
+  - an Application ID URI, `api://<its client ID>`, and a scope such as `access`;
+  - an app role, `appshell-publisher`, assigned to whoever may publish;
+  - version 2 access tokens: `"requestedAccessTokenVersion": 2`, under `api` in its manifest.
+- **The CLI,** with public client flows allowed and a delegated permission to the registry's scope,
+  with consent granted for the tenant.
+
+Entra issues a token for the registry only when the CLI asks for that scope, so set it when you
+configure the CLI:
+
+```sh
+npx appshell config init --auth-issuer https://login.microsoftonline.com/<tenant ID>/v2.0 \
+  --client-id <CLI's client ID> \
+  --auth-scope "openid profile offline_access api://<registry's client ID>/access" \
+  --default-scope <scope> --application <scope>/portal
+```
+
+Its usernames are usually email addresses, so nobody has an own scope: name one with
+`--default-scope`.
 
 ```sh
 AUTH_ISSUER=https://login.microsoftonline.com/<tenant ID>/v2.0
@@ -365,6 +414,10 @@ A published version never changes, so give a changed package a new version in it
   already done. If it found a different build of a version already in `bundles/`, from changed
   code or dependencies, [start over](#stopping-and-starting-over), or give that package a new
   version.
+- **Nobody signed in through your provider can do anything:** the registry's log says why on
+  start-up, in a line about your provider's signing keys. With a certificate from your own CA, see
+  [your provider's certificate](#your-providers-certificate). A token it refuses gets a 401 that
+  says why, such as a wrong audience or issuer.
 - **A port is taken:** stop what holds 7150 or 8080. The dev servers use 7410–7413.
 
 ## License
