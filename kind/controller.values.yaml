@@ -1,0 +1,13 @@
+# appshell-controller, from its chart (oci://ghcr.io/appshellhq/charts/appshell-controller). It
+# keeps each AppshellApplication's registry application at the state the resource declares,
+# applying it with its own service-account token.
+
+registry:
+  # The registry's Service, in the cluster. Plain http, which only this local cluster may use:
+  # the controller's token is a credential.
+  url: http://appshell-registry.appshell.svc
+  allowInsecure: true
+
+# How often it applies an application again, which reverts a change made in the registry around
+# it. A minute, so the walkthrough shows it; the chart's default is ten.
+reconcileInterval: 1m

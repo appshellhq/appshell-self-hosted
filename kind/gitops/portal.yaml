@@ -1,0 +1,25 @@
+# acme/portal, as git declares it. Argo CD syncs this file into the cluster, and appshell-controller
+# applies it to the registry: change it here, push, and the portal follows.
+#
+# The seed created acme/portal and trusts the controller to apply it. From then on this file is
+# where the portal's state comes from: a change made in the registry around it is reverted within
+# a minute.
+apiVersion: registry.appshell.org/v1alpha1
+kind: AppshellApplication
+metadata:
+  name: portal
+spec:
+  name: acme/portal
+  shell:
+    root: acme/layout/Layout
+    title: Acme Portal
+    description: An application composed by your own appshell registry
+    theme:
+      base: neutral
+      accent: steel
+      colorScheme: system
+  # Every package the portal activates, pinned. One left out is deactivated.
+  packages:
+    - acme/layout@1.0.0
+    - acme/home@1.0.0
+    - acme/orders@1.0.0

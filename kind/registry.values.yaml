@@ -1,0 +1,24 @@
+# The registry, from its chart (oci://ghcr.io/appshellhq/charts/appshell-registry), with the
+# settings compose.yaml gives it, and one more: it trusts this cluster's workloads to apply
+# applications, appshell-controller first among them.
+
+# MONGO_URI and GRANT_SECRET, which kind/up.sh generates.
+existingSecret: registry
+
+config:
+  # It verifies every token itself, against Keycloak. Tokens name the issuer your browser and the
+  # CLI use; the registry finds Keycloak inside the cluster.
+  AUTH_ISSUER: http://localhost:8080/realms/appshell
+  AUTH_DISCOVERY_URL: http://keycloak:8080/realms/appshell
+  AUTH_AUDIENCE: appshell-registry
+  # The bundles server, which the registry fetches packages' files from.
+  ARTIFACT_BASE_URL: 'http://bundles/{scope}/{name}/{version}/'
+  APPS_BASE_URL: http://localhost:7150
+  # Trust this cluster's service-account issuer, which the registry reads from the API server as
+  # itself: the chart binds it the one ClusterRole that allows that. A workload here may then apply
+  # an application whose owners trust its service account.
+  TRUSTED_DEPLOYMENT_LOCAL_CLUSTER: true
+  # The audience such a workload's token must name: the registry's address in the cluster, which
+  # is where appshell-controller reaches it, with /deploy (kind/controller.values.yaml).
+  TRUSTED_DEPLOYMENT_AUDIENCE: http://appshell-registry.appshell.svc/deploy
+  OTEL_SDK_DISABLED: true
