@@ -72,3 +72,91 @@ jobs:
       - name: The services' logs, on failure
         if: failure()
         run: docker compose logs --tail 100
+
+  # The kind walkthrough: kind/up.sh brings it all up from the published charts, Argo CD syncs
+  # kind/gitops at this commit, and the controller applies it. Then changes made through Argo CD,
+  # as a push would make them, reach the registry, or are refused without touching it.
+  kind:
+    name: kind, kept at what git declares
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      KIND_VERSION: v0.33.0
+      KIND_SHA256: aee6151561422756b764a4ae28e7f44cda5af5a9eead3cc9985112b1de8d8e0d
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v4.3.0
+
+      - name: Install kind
+        run: |
+          set -euo pipefail
+          curl -fsSLo kind "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64"
+          echo "${KIND_SHA256}  kind" | sha256sum --check
+          sudo install kind /usr/local/bin/kind
+
+      # From this commit: otherwise the cluster pulls the released image, and the change goes
+      # untested.
+      - name: Build the seed
+        run: docker compose --profile seed build seed
+
+      - name: Bring it up
+        env:
+          # This commit, in the repository it's in: a fork's pull request is in the fork.
+          REPO_URL: ${{ github.event.pull_request.head.repo.clone_url || format('{0}/{1}', github.server_url, github.repository) }}
+          REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: kind/up.sh
+
+      - name: The portal composes
+        run: |
+          set -euo pipefail
+          export BROWSER_DIR="$RUNNER_TEMP/browser"
+          npm install --no-save --prefix "$BROWSER_DIR" playwright@1.64.1
+          "$BROWSER_DIR/node_modules/.bin/playwright" install --with-deps chromium
+          cp .github/scripts/check-portal.mjs "$BROWSER_DIR/"
+          node "$BROWSER_DIR/check-portal.mjs"
+
+      # A kustomize patch on Argo CD's Application stands in for a push: it changes what Argo CD
+      # renders from git, and everything after that is as a push would make it.
+      - name: A change through Argo CD reaches the registry
+        run: |
+          set -euo pipefail
+          kubectl --context kind-appshell -n argocd patch application acme-portal --type merge -p '{"spec":{"source":{"kustomize":{"patches":[{"target":{"kind":"AppshellApplication","name":"portal"},"patch":"- op: replace\n  path: /spec/shell/theme/accent\n  value: emerald\n"}]}}}}'
+          for _ in $(seq 1 40); do
+            if curl -fsS http://localhost:7150/v1/applications/acme/portal | grep -q '"ref":"appshell/neutral-emerald@1.0.0"'; then
+              echo "The registry applied the emerald accent."
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "::error::The accent never reached the registry."
+          exit 1
+
+      - name: A version never published is refused, and the portal keeps what it had
+        run: |
+          set -euo pipefail
+          kubectl --context kind-appshell -n argocd patch application acme-portal --type json -p '[{"op":"add","path":"/spec/source/kustomize/patches/-","value":{"target":{"kind":"AppshellApplication","name":"portal"},"patch":"- op: replace\n  path: /spec/packages/2\n  value: acme/orders@9.9.9\n"}}]'
+          health=""
+          for _ in $(seq 1 40); do
+            health=$(kubectl --context kind-appshell -n argocd get application acme-portal -o jsonpath='{.status.health.status}')
+            [ "$health" = Degraded ] && break
+            sleep 3
+          done
+          [ "$health" = Degraded ] || { echo "::error::Argo CD says $health, not Degraded."; exit 1; }
+          kubectl --context kind-appshell -n acme get appshellapplication portal \
+            -o jsonpath='{.status.conditions[?(@.type=="Ready")].message}' | tee /dev/stderr | grep -q 'acme/orders@9.9.9 is not published'
+          curl -fsS http://localhost:7150/v1/applications/acme/portal | grep -q '"packageId":"acme/orders@1.0.0"'
+          echo "Refused, and the portal still activates acme/orders@1.0.0."
+
+      - name: What the cluster saw, on failure
+        if: failure()
+        run: |
+          k() { kubectl --context kind-appshell "$@"; }
+          k get pods --all-namespaces -o wide || true
+          k -n acme get appshellapplication portal -o yaml || true
+          k -n argocd get application acme-portal -o yaml || true
+          k -n appshell logs job/seed --tail 50 || true
+          k -n appshell logs deployment/appshell-registry --tail 100 || true
+          k -n appshell-system logs deployment/appshell-controller --tail 100 || true
