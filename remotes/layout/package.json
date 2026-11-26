@@ -9,8 +9,8 @@
     "build": "webpack --mode production"
   },
   "dependencies": {
-    "@appshell/react": "^1.0.0",
-    "@appshell/runtime": "^1.0.0",
+    "@appshell/react": "^1.0.2",
+    "@appshell/runtime": "^1.0.2",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "react-router": "^7.9.0"
