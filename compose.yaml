@@ -79,7 +79,7 @@ services:
   registry:
     # A release, pinned, so the walkthrough meets the registry CI ran it against. Renovate
     # proposes the next.
-    image: ${REGISTRY_IMAGE:-ghcr.io/appshellhq/appshell-registry:1.0.0-alpha.3}
+    image: ${REGISTRY_IMAGE:-ghcr.io/appshellhq/appshell-registry:1.0.0}
     environment:
       # oidc: the registry verifies every token itself, against Keycloak unless a .env file here
       # names another provider (the README's "Your own identity provider"). Set AUTH_MODE=none
@@ -125,7 +125,7 @@ services:
     # on your machine. Compose builds it from remotes/ and seed/ instead when it can't pull it, and
     # `docker compose build seed` does after you change them. A release names its own version here
     # before it's tagged; .github/workflows/release.yml checks it does.
-    image: ghcr.io/appshellhq/appshell-self-hosted-seed:0.1.0
+    image: ghcr.io/appshellhq/appshell-self-hosted-seed:0.2.0
     build:
       context: .
       dockerfile: seed/Dockerfile
