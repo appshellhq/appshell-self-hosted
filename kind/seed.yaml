@@ -1,0 +1,48 @@
+# The seed, as `docker compose run seed` runs it: it publishes acme's layout and pages and applies
+# acme/portal. Here it also trusts appshell-controller to apply the portal from then on.
+# kind/up.sh fills in the image compose.yaml names and this cluster's issuer, and runs it again
+# each time; it's safe to.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: seed
+spec:
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: seed
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      containers:
+        - name: seed
+          image: SEED_IMAGE
+          env:
+            - name: APPSHELL_REGISTRY
+              value: http://appshell-registry
+            - name: PUBLIC_URL
+              value: http://localhost:7150
+            - name: TOKEN_URL
+              value: http://keycloak:8080/realms/appshell/protocol/openid-connect/token
+            - name: SEED_CLIENT_ID
+              value: appshell-seed
+            # The realm's, in keycloak/appshell-realm.json: a local demo's, for its seed only.
+            - name: SEED_CLIENT_SECRET
+              value: seed-secret-for-this-local-demo-only
+            # appshell-controller's service account, under this cluster's issuer.
+            - name: TRUST_KUBERNETES_ISSUER
+              value: CLUSTER_ISSUER
+            - name: TRUST_NAMESPACE
+              value: appshell-system
+            - name: TRUST_SERVICE_ACCOUNT
+              value: appshell-controller
+          volumeMounts:
+            - name: bundles
+              mountPath: /bundles
+      # The clone's bundles/ directory, as Compose mounts it (kind/cluster.yaml).
+      volumes:
+        - name: bundles
+          hostPath:
+            path: /bundles
+            type: Directory

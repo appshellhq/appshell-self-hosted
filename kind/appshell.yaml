@@ -1,0 +1,212 @@
+# What the registry needs on kind, as compose.yaml runs it: MongoDB, Keycloak with the demo's
+# realm, and a server for packages' files. The registry itself is installed from its chart
+# (kind/registry.values.yaml). Applied by kind/up.sh into the appshell namespace.
+---
+# The registry's only store. A replica set of one member: the registry writes in transactions,
+# which MongoDB allows only on a replica set, and refuses to start on a standalone server.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mongodb
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mongodb
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mongodb
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: mongodb
+          image: mongo:8.0
+          args: [--replSet, rs0, --bind_ip_all]
+          ports:
+            - containerPort: 27017
+          # Initiates the set on its first start, and is ready once this member is the primary.
+          # The member is named localhost: the registry connects with directConnection=true, so
+          # no client ever has to resolve it.
+          readinessProbe:
+            exec:
+              command:
+                - mongosh
+                - --quiet
+                - --eval
+                - >-
+                  try { rs.status().ok } catch (e) {
+                  rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'localhost:27017' }] }) }
+                  if (!db.hello().isWritablePrimary) quit(1)
+            periodSeconds: 5
+            timeoutSeconds: 10
+          volumeMounts:
+            - name: data
+              mountPath: /data/db
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: mongodb
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb
+spec:
+  selector:
+    app.kubernetes.io/name: mongodb
+  ports:
+    - port: 27017
+---
+# Who signs in: the demo's realm, from keycloak/appshell-realm.json, which kind/up.sh puts in a
+# ConfigMap. Tokens name the issuer your browser and the CLI use, http://localhost:8080; the
+# registry and the seed reach Keycloak inside the cluster, and the dynamic back channel answers
+# them with addresses they can reach. The realm lives in the pod, so a restarted Keycloak starts
+# from the file again.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: keycloak
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: keycloak
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: keycloak
+          image: quay.io/keycloak/keycloak:26.0.7
+          args: [start-dev, --import-realm]
+          env:
+            # As in compose.yaml: reachable only from this machine (kind/cluster.yaml).
+            - name: KC_BOOTSTRAP_ADMIN_USERNAME
+              value: admin
+            - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+              value: admin
+            - name: KC_HOSTNAME
+              value: http://localhost:8080
+            - name: KC_HOSTNAME_BACKCHANNEL_DYNAMIC
+              value: 'true'
+            - name: KC_HEALTH_ENABLED
+              value: 'true'
+          ports:
+            - containerPort: 8080
+            - containerPort: 9000
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 9000
+            periodSeconds: 5
+            failureThreshold: 60
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests: { cpu: 100m, memory: 512Mi }
+            limits: { memory: 1Gi }
+          volumeMounts:
+            - name: realm
+              mountPath: /opt/keycloak/data/import
+              readOnly: true
+      volumes:
+        - name: realm
+          configMap:
+            name: keycloak-realm
+---
+# In the cluster as keycloak:8080, and on this machine as localhost:8080.
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: keycloak
+  ports:
+    - port: 8080
+      targetPort: 8080
+      nodePort: 30808
+---
+# Where packages' files live, as a deployment's bucket or CDN would hold them: the clone's bundles/
+# directory, which the node mounts (kind/cluster.yaml) and Compose serves too. The seed writes
+# each build to {scope}/{name}/{version}/ there, and so do you in the walkthrough; the registry
+# fetches from here and serves them to browsers itself. Browsers never come here.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bundles
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: bundles
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: bundles
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: nginx
+          image: nginx:1.29-alpine
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: bundles
+              mountPath: /usr/share/nginx/html
+              readOnly: true
+      volumes:
+        - name: bundles
+          hostPath:
+            path: /bundles
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bundles
+spec:
+  selector:
+    app.kubernetes.io/name: bundles
+  ports:
+    - port: 80
+---
+# The registry on this machine, as localhost:7150. The chart's own Service stays the cluster's
+# way in; this one selects the same pods.
+apiVersion: v1
+kind: Service
+metadata:
+  name: registry-host
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: appshell-registry
+    app.kubernetes.io/instance: appshell-registry
+  ports:
+    - port: 7150
+      targetPort: http
+      nodePort: 30715

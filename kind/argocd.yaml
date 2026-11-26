@@ -1,0 +1,39 @@
+# Argo CD's settings for the demo, applied by kind/up.sh before Argo CD itself, so it starts with
+# them. kind/up.sh adds the health check for AppshellApplications from the controller's chart.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  # How often it looks at git: thirty seconds, so a push shows in the walkthrough without waiting.
+  # Its default is two minutes.
+  timeout.reconciliation: 30s
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+  labels:
+    app.kubernetes.io/name: argocd-cmd-params-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  # Its UI over plain http, on localhost:8081 only (kind/cluster.yaml).
+  server.insecure: 'true'
+---
+# Argo CD's UI on this machine, as localhost:8081.
+apiVersion: v1
+kind: Service
+metadata:
+  name: argocd-ui
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: argocd-server
+  ports:
+    - port: 8080
+      targetPort: 8080
+      nodePort: 30881

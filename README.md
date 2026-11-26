@@ -368,6 +368,10 @@ The chart's README covers its values, your own CA, an egress proxy, and checking
 The chart's version is the registry's, and it installs that version's image by digest.
 `helm show chart` names the newest.
 
+To try it on your machine first, [`kind/`](kind/README.md) runs this demo on a kind cluster from
+the chart. It adds appshell-controller and Argo CD, which keep acme/portal at the state a file in
+git declares.
+
 ## Checking the images
 
 The registry's image and the seed's are signed by the GitHub workflows that published them, with

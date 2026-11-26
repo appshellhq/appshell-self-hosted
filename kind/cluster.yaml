@@ -1,0 +1,28 @@
+# One node, with the ports the Compose demo uses, so the walkthrough's addresses and the realm's
+# work unchanged: the registry at localhost:7150, Keycloak at localhost:8080. Argo CD's UI is at
+# localhost:8081. Each on 127.0.0.1 only, as Compose publishes them, so nothing else on your
+# network reaches them.
+#
+# And the clone's bundles/ directory, which the Compose demo serves packages' files from: the
+# bundles server here serves it too, so the seed and the walkthrough put files in the same place
+# for both. kind needs its absolute path, which kind/up.sh puts in for REPOSITORY.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      # The registry (kind/appshell.yaml, registry-host).
+      - containerPort: 30715
+        hostPort: 7150
+        listenAddress: 127.0.0.1
+      # Keycloak (kind/appshell.yaml, keycloak).
+      - containerPort: 30808
+        hostPort: 8080
+        listenAddress: 127.0.0.1
+      # Argo CD's UI (kind/argocd.yaml, argocd-ui).
+      - containerPort: 30881
+        hostPort: 8081
+        listenAddress: 127.0.0.1
+    extraMounts:
+      - hostPath: REPOSITORY/bundles
+        containerPath: /bundles
