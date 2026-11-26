@@ -22,7 +22,7 @@ context="kind-${cluster}"
 
 # Pinned, so what this installs changes only by a commit here. Argo CD's manifest is checked
 # against its checksum; the charts are signed (README.md, Checking the images).
-registry_chart_version=1.1.0
+registry_chart_version=1.1.1
 controller_chart_version=0.2.0
 argocd_version=v3.6.3
 argocd_sha256=22b404352546b3bd000cd8354de793e8ca748fc8f3b2798cefe397dc4cafef27
