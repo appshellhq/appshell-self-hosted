@@ -119,6 +119,14 @@ step "Argo CD, $argocd_version"
 curl -fsSLo "$work/argocd.yaml" "https://raw.githubusercontent.com/argoproj/argo-cd/${argocd_version}/manifests/install.yaml"
 echo "${argocd_sha256}  $work/argocd.yaml" | shasum -a 256 -c - > /dev/null \
   || fail "Argo CD's install.yaml isn't the one this script was checked against."
+# Argo CD pulls Redis from public.ecr.aws, which refuses anonymous pulls often enough
+# ("toomanyrequests") to fail an install. The same image, by its digest, from Google's mirror of
+# Docker Hub instead.
+redis_ecr=public.ecr.aws/docker/library/redis:8.10.1-alpine
+redis_mirror=mirror.gcr.io/library/redis:8.10.1-alpine@sha256:ef216d85ec44f4fdf7c0e6df2d1757a4734ed32fbb278cabd3181b5a27353b79
+grep -q "image: ${redis_ecr}$" "$work/argocd.yaml" || fail "Argo CD's install.yaml no longer names ${redis_ecr}."
+sed "s|image: ${redis_ecr}$|image: ${redis_mirror}|" "$work/argocd.yaml" > "$work/argocd-mirrored.yaml"
+mv "$work/argocd-mirrored.yaml" "$work/argocd.yaml"
 # Its settings first, so it starts with them: the demo's, and the controller chart's health check
 # for AppshellApplications, which makes Argo CD report what the controller did.
 k -n argocd apply --server-side --field-manager appshell-kind -f kind/argocd.yaml
