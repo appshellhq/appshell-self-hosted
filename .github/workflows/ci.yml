@@ -93,9 +93,10 @@ jobs:
       - name: Install kind
         run: |
           set -euo pipefail
-          curl -fsSLo kind "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64"
-          echo "${KIND_SHA256}  kind" | sha256sum --check
-          sudo install kind /usr/local/bin/kind
+          # Not ./kind, which is this repository's kind/ directory.
+          curl -fsSLo "$RUNNER_TEMP/kind" "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64"
+          echo "${KIND_SHA256}  $RUNNER_TEMP/kind" | sha256sum --check
+          sudo install "$RUNNER_TEMP/kind" /usr/local/bin/kind
 
       # From this commit: otherwise the cluster pulls the released image, and the change goes
       # untested.
