@@ -10,6 +10,10 @@
  * role, through the client credentials grant: a pipeline's identity rather than a person's. So
  * acme belongs to that account, and a person who wants to change the portal clones it into a
  * scope of their own.
+ *
+ * Given a Kubernetes service account (TRUST_KUBERNETES_ISSUER, TRUST_NAMESPACE and
+ * TRUST_SERVICE_ACCOUNT), it also trusts that account to apply acme/portal: on kind,
+ * appshell-controller, which then keeps the portal at the state git declares.
  */
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -17,7 +21,16 @@ import { cpSync, existsSync, readdirSync, readFileSync, statSync, writeFileSync 
 import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 
-const { APPSHELL_REGISTRY, PUBLIC_URL, TOKEN_URL, SEED_CLIENT_ID, SEED_CLIENT_SECRET } = process.env;
+const {
+  APPSHELL_REGISTRY,
+  PUBLIC_URL,
+  TOKEN_URL,
+  SEED_CLIENT_ID,
+  SEED_CLIENT_SECRET,
+  TRUST_KUBERNETES_ISSUER,
+  TRUST_NAMESPACE,
+  TRUST_SERVICE_ACCOUNT,
+} = process.env;
 
 const SCOPE = 'acme';
 const REMOTES = ['layout', 'home', 'orders'];
@@ -113,5 +126,19 @@ writeFileSync(
   `${readFileSync('/seed/portal.app.yaml', 'utf-8')}  packages:\n${packages.map((p) => `    - ${p}\n`).join('')}`,
 );
 appshell('/seed', 'app', 'apply', '-f', application);
+
+// A deployment pipeline the platform team trusts with the portal from here on. Only an owner can
+// add the record, and the application has to exist first, so it's the seed's to do. Adding one
+// that's already there changes nothing.
+if (TRUST_KUBERNETES_ISSUER) {
+  if (!TRUST_NAMESPACE || !TRUST_SERVICE_ACCOUNT) {
+    throw new Error('TRUST_KUBERNETES_ISSUER needs TRUST_NAMESPACE and TRUST_SERVICE_ACCOUNT.');
+  }
+
+  appshell('/seed', 'trust', 'add', SCOPE, '--application', 'portal',
+    '--kubernetes', TRUST_KUBERNETES_ISSUER,
+    '--namespace', TRUST_NAMESPACE,
+    '--service-account', TRUST_SERVICE_ACCOUNT);
+}
 
 console.log(`\nSeeded. Open ${PUBLIC_URL}/a/${SCOPE}/portal`);
