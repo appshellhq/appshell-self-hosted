@@ -344,6 +344,30 @@ AUTH_ROLES_CLAIM=groups
 AUTH_WRITE_ROLE=appshell-publishers
 ```
 
+## On Kubernetes
+
+Once the registry works for you here, run it on your own cluster from its Helm chart. Its settings
+are the ones in this guide, under the same names, so your provider's recipe carries over: put them
+in the chart's `config`. What Compose gave you, you bring:
+
+- **MongoDB, as a replica set.** One member is enough, as here: the registry writes in
+  transactions, and refuses to start on a standalone server.
+- **A Secret** holding `MONGO_URI` and `GRANT_SECRET`. The chart never creates one, so no secret
+  passes through its values.
+- **Somewhere to serve packages' files from,** in place of the `bundles` directory: a bucket, a
+  CDN or a web server, as `ARTIFACT_BASE_URL`.
+- **A route in:** an Ingress or a Gateway API HTTPRoute, both of which the chart can create.
+
+```sh
+helm show readme oci://ghcr.io/appshellhq/charts/appshell-registry
+helm install appshell-registry oci://ghcr.io/appshellhq/charts/appshell-registry \
+  --version <version> --namespace appshell -f values.yaml
+```
+
+The chart's README covers its values, your own CA, an egress proxy, and checking its signature.
+The chart's version is the registry's, and it installs that version's image by digest.
+`helm show chart` names the newest.
+
 ## Checking the images
 
 The registry's image and the seed's are signed by the GitHub workflows that published them, with
