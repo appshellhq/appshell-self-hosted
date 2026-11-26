@@ -6,12 +6,33 @@
   "prConcurrentLimit": 5,
   "labels": ["dependencies"],
   "rangeStrategy": "bump",
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "kind/up.sh pins what it installs in shell variables, which no manager reads. Each has a '# renovate:' comment on the line above it naming where its versions come from.",
+      "managerFilePatterns": ["/^kind/up\\.sh$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?\\n[a-z_]+=(?<currentValue>\\S+)"
+      ]
+    }
+  ],
   "packageRules": [
     {
-      "description": "What this demo exists to show: the registry, and the CLI and plugin a reader runs against it. Their own PR, never grouped with tooling, so CI's compose job proves each bump before anyone reads the README against it.",
-      "matchPackageNames": ["ghcr.io/appshellhq/appshell-registry", "/^@appshell//"],
+      "description": "What this demo exists to show: the registry, as an image and as the chart that pins that image, and the CLI and plugin a reader runs against it. Their own PR, never grouped with tooling, so CI's compose and kind jobs prove each bump before anyone reads the README against it. Not held for Monday: a release of ours is proposed at Renovate's next run.",
+      "matchPackageNames": [
+        "ghcr.io/appshellhq/appshell-registry",
+        "ghcr.io/appshellhq/charts/appshell-registry",
+        "/^@appshell//"
+      ],
       "groupName": "appshell",
-      "labels": ["dependencies", "appshell"]
+      "labels": ["dependencies", "appshell"],
+      "schedule": ["at any time"]
+    },
+    {
+      "description": "appshell-controller releases on its own, so its chart has its own PR. Not held for Monday either.",
+      "matchPackageNames": ["ghcr.io/appshellhq/charts/appshell-controller"],
+      "labels": ["dependencies", "appshell"],
+      "schedule": ["at any time"]
     },
     {
       "description": "The registry's tags are semver, prereleases included. Docker versioning reads -alpha.1 as a variant, like -alpine, so it would never offer the next release.",

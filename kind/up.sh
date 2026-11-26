@@ -22,8 +22,15 @@ context="kind-${cluster}"
 
 # Pinned, so what this installs changes only by a commit here. Argo CD's manifest is checked
 # against its checksum; the charts are signed (README.md, Checking the images).
+#
+# Renovate proposes the next of each from the comment above it (renovate.json, customManagers),
+# so keep each comment directly above its line. It can't work out argocd_sha256: a pull request
+# that moves argocd_version fails here until someone downloads that install.yaml and sets it.
+# renovate: datasource=docker depName=ghcr.io/appshellhq/charts/appshell-registry versioning=semver
 registry_chart_version=1.1.1
+# renovate: datasource=docker depName=ghcr.io/appshellhq/charts/appshell-controller versioning=semver
 controller_chart_version=0.2.0
+# renovate: datasource=github-releases depName=argoproj/argo-cd
 argocd_version=v3.6.3
 argocd_sha256=22b404352546b3bd000cd8354de793e8ca748fc8f3b2798cefe397dc4cafef27
 
@@ -118,7 +125,7 @@ case "$outcome" in *Complete*) ;; *) fail "The seed didn't finish: $outcome" ;; 
 step "Argo CD, $argocd_version"
 curl -fsSLo "$work/argocd.yaml" "https://raw.githubusercontent.com/argoproj/argo-cd/${argocd_version}/manifests/install.yaml"
 echo "${argocd_sha256}  $work/argocd.yaml" | shasum -a 256 -c - > /dev/null \
-  || fail "Argo CD's install.yaml isn't the one this script was checked against."
+  || fail "Argo CD's install.yaml isn't the one this script was checked against. If argocd_version changed, argocd_sha256 has to change with it."
 # Argo CD pulls Redis from public.ecr.aws, which refuses anonymous pulls often enough
 # ("toomanyrequests") to fail an install. The same image, by its digest, from Google's mirror of
 # Docker Hub instead.
