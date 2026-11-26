@@ -102,7 +102,8 @@ undone too, within a minute.
 
 The Compose walkthrough's steps 2 to 8 work here unchanged, from the repository's root: sign in as
 alice, copy the portal into her scope, develop a page, publish it, and keep code private. Its
-addresses are this registry's.
+addresses are this registry's, and its `bundles/` directory is the one this registry's bundles
+server serves: the cluster's node mounts it.
 
 ## How it fits together
 
@@ -115,6 +116,9 @@ addresses are this registry's.
   server (`TRUSTED_DEPLOYMENT_LOCAL_CLUSTER`). It applies an application for a workload only if one
   of the application's owners trusts that workload. The seed, acme's owner, trusts the controller
   with acme/portal and nothing else.
+- **Packages' files** are in the clone's `bundles/` directory, as in Compose: the cluster's node
+  mounts it, and the bundles server serves it. So a cluster belongs to the clone it was made from:
+  after moving the clone, delete the cluster and run `kind/up.sh` again.
 - **Everything else** is as in Compose: [`appshell.yaml`](appshell.yaml),
   [`registry.values.yaml`](registry.values.yaml) and [`controller.values.yaml`](controller.values.yaml)
   say how.

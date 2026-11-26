@@ -62,8 +62,10 @@ if ! kind get clusters 2> /dev/null | grep -qx "$cluster"; then
       fail "Port $port is taken. The Compose demo uses 7150 and 8080: stop it first with 'docker compose down'."
     fi
   done
+  # The clone's bundles/ directory, mounted into the node, by its absolute path.
+  sed "s|REPOSITORY|$(pwd)|" kind/cluster.yaml > "$work/cluster.yaml"
   previous=$(kubectl config current-context 2> /dev/null || true)
-  kind create cluster --name "$cluster" --config kind/cluster.yaml ${KIND_NODE_IMAGE:+--image "$KIND_NODE_IMAGE"} --wait 120s
+  kind create cluster --name "$cluster" --config "$work/cluster.yaml" ${KIND_NODE_IMAGE:+--image "$KIND_NODE_IMAGE"} --wait 120s
   # kind makes the new cluster your current context. Yours may be one where a mistake costs more.
   [ -z "$previous" ] || kubectl config use-context "$previous" > /dev/null
 fi

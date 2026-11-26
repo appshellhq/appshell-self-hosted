@@ -40,7 +40,9 @@ spec:
           volumeMounts:
             - name: bundles
               mountPath: /bundles
+      # The clone's bundles/ directory, as Compose mounts it (kind/cluster.yaml).
       volumes:
         - name: bundles
-          persistentVolumeClaim:
-            claimName: bundles
+          hostPath:
+            path: /bundles
+            type: Directory

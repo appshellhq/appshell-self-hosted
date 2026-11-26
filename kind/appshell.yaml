@@ -151,19 +151,10 @@ spec:
       targetPort: 8080
       nodePort: 30808
 ---
-# Where packages' files live, as a deployment's bucket or CDN would hold them: the seed writes
-# each build to {scope}/{name}/{version}/ here, and the registry fetches from it and serves them to
-# browsers itself. Browsers never come here.
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: bundles
-spec:
-  accessModes: [ReadWriteOnce]
-  resources:
-    requests:
-      storage: 1Gi
----
+# Where packages' files live, as a deployment's bucket or CDN would hold them: the clone's bundles/
+# directory, which the node mounts (kind/cluster.yaml) and Compose serves too. The seed writes
+# each build to {scope}/{name}/{version}/ there, and so do you in the walkthrough; the registry
+# fetches from here and serves them to browsers itself. Browsers never come here.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -190,8 +181,9 @@ spec:
               readOnly: true
       volumes:
         - name: bundles
-          persistentVolumeClaim:
-            claimName: bundles
+          hostPath:
+            path: /bundles
+            type: Directory
 ---
 apiVersion: v1
 kind: Service
